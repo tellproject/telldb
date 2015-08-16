@@ -14,3 +14,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Set compile options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+# Find dependencies
+find_package(Boost REQUIRED)
+find_package(Crossbow COMPONENTS Allocator InfinIO Logger REQUIRED)
+find_package(BdTree REQUIRED)
+find_package(TellStore REQUIRED)
+find_package(Jemalloc REQUIRED)
+
+add_subdirectory(benchmark)
