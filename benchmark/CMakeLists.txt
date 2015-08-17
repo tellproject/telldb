@@ -2,9 +2,11 @@
 # TellDB benchmark
 ###################
 set(BENCHMARK_SRCS
+    RemoteCounter.cpp
 )
 
 set(BENCHMARK_PRIVATE_HDR
+    RemoteCounter.hpp
 )
 
 # Add TellDB benchmark executable
