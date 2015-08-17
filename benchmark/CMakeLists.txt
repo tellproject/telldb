@@ -2,11 +2,14 @@
 # TellDB benchmark
 ###################
 set(BENCHMARK_SRCS
+    BdTreeBackend.cpp
     RemoteCounter.cpp
 )
 
 set(BENCHMARK_PRIVATE_HDR
+    BdTreeBackend.hpp
     RemoteCounter.hpp
+    TableData.hpp
 )
 
 # Add TellDB benchmark executable
