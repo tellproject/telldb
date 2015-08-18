@@ -13,4 +13,19 @@ set(TellDB_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "Path to the TellDB binari
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Set compile options
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+
+find_package(Crossbow COMPONENTS InfinIO REQUIRED)
+
+set(TELLDB_SRCS
+        src/TellDB.cpp
+)
+
+set(TELLDB_COMMON_HDR
+        telldb/TellDB.hpp
+)
+add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
+target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
+target_link_libraries(telldb PRIVATE ${Crossbow_LIBRARIES})
+
