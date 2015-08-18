@@ -104,8 +104,7 @@ store::Table BdTreePointerTable::createTable(store::ClientHandle& handle, const 
     store::Schema schema(store::TableType::NON_TRANSACTIONAL);
     schema.addField(store::FieldType::BIGINT, gPointerFieldName, true);
 
-    auto createTableFuture = handle.createTable(name, schema);
-    return createTableFuture->get();
+    return handle.createTable(name, std::move(schema));
 }
 
 std::tuple<bdtree::physical_pointer, uint64_t> BdTreePointerTable::read(bdtree::logical_pointer lptr,
@@ -140,8 +139,7 @@ store::Table BdTreeNodeTable::createTable(store::ClientHandle& handle, const cro
     store::Schema schema(store::TableType::NON_TRANSACTIONAL);
     schema.addField(store::FieldType::BLOB, gNodeFieldName, true);
 
-    auto createTableFuture = handle.createTable(name, schema);
-    return createTableFuture->get();
+    return handle.createTable(name, std::move(schema));
 }
 
 BdTreeNodeTable::BdTreeNodeTable(store::ClientHandle& handle, TableData& table)

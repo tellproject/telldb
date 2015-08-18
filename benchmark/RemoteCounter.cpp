@@ -18,8 +18,7 @@ std::shared_ptr<store::Table> RemoteCounter::createTable(store::ClientHandle& ha
     store::Schema schema(store::TableType::NON_TRANSACTIONAL);
     schema.addField(store::FieldType::BIGINT, gCounterFieldName, true);
 
-    auto createTableFuture = handle.createTable(name, schema);
-    return std::make_shared<store::Table>(createTableFuture->get());
+    return std::make_shared<store::Table>(handle.createTable(name, std::move(schema)));
 }
 
 RemoteCounter::RemoteCounter(std::shared_ptr<store::Table> counterTable, uint64_t counterId)
