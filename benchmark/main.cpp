@@ -22,7 +22,6 @@ int main(int argc, const char** argv) {
             crossbow::program_options::value<'l'>("log-level", &logLevel),
             crossbow::program_options::value<'c'>("commit-manager", &commitManagerHost),
             crossbow::program_options::value<'s'>("server", &tellStoreHost),
-            crossbow::program_options::value<'m'>("memory", &clientConfig.scanMemory),
             crossbow::program_options::value<-1>("network-threads", &clientConfig.numNetworkThreads,
                     crossbow::program_options::tag::ignore_short<true>{}));
 
@@ -40,7 +39,19 @@ int main(int argc, const char** argv) {
     }
 
     clientConfig.commitManager = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManagerHost);
-    clientConfig.tellStore = crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), tellStoreHost);
+
+    if (!tellStoreHost.empty()) {
+        size_t i = 0;
+        while (true) {
+            auto pos = tellStoreHost.find(';', i);
+            clientConfig.tellStore.emplace_back(crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(),
+                    tellStoreHost.substr(i, pos)));
+            if (pos == crossbow::string::npos) {
+                break;
+            }
+            i = pos + 1;
+        }
+    }
 
     crossbow::infinio::InfinibandLimits infinibandLimits;
     infinibandLimits.receiveBufferCount = 128;
@@ -52,9 +63,10 @@ int main(int argc, const char** argv) {
 
     LOG_INFO("Starting TellDB benchmark");
     LOG_INFO("--- Commit Manager: %1%", clientConfig.commitManager);
-    LOG_INFO("--- TellStore: %1%", clientConfig.tellStore);
+    for (auto& ep : clientConfig.tellStore) {
+        LOG_INFO("--- TellStore Shards: %1%", ep);
+    }
     LOG_INFO("--- Network Threads: %1%", clientConfig.numNetworkThreads);
-    LOG_INFO("--- Scan Memory: %1%GB", double(clientConfig.scanMemory) / double(1024 * 1024 * 1024));
 
     // Initialize allocator
     crossbow::allocator::init();
