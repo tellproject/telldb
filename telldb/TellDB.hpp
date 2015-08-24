@@ -1,6 +1,9 @@
+// !b = ../src/TellDB.cpp
 #pragma once
 #include <memory>
 #include <functional>
+
+#include "TellClient.hpp"
 
 namespace tell {
 namespace store {
@@ -13,8 +16,6 @@ struct ClientConfig;
 namespace telldb {
 
 class TellDBImpl;
-
-class TellClient {};
 
 class TellDB {
     std::unique_ptr<TellDBImpl> _impl;
