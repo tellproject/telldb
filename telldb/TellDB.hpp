@@ -11,9 +11,7 @@ namespace store {
 struct ClientConfig;
 
 } // namespace store
-} // namespace tell
-
-namespace telldb {
+namespace db {
 
 class TellDBImpl;
 
@@ -24,4 +22,5 @@ public:
     void execute(const std::function<void(TellClient&)>& fun);
 };
 
-}
+} // db
+} // tell

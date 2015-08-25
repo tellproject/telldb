@@ -2,7 +2,8 @@
 #pragma once
 #include <tellstore/ClientManager.hpp>
 
-namespace telldb {
+namespace tell {
+namespace db {
 
 class Transaction {
     tell::store::ClientTransaction _transaction;
@@ -16,4 +17,5 @@ public:
     }
 };
 
-} // namespace telldb
+} // namespace db
+} // namespace tell

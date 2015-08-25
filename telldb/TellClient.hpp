@@ -1,7 +1,16 @@
-// !b = ../src/TellClient.cpp
 #pragma once
 #include <tellstore/ClientManager.hpp>
+#include <crossbow/string.hpp>
+#include <bdtree/logical_table_cache.h>
+#include <bdtree/util.h>
+
+#include <boost/variant.hpp>
+#include <boost/optional.hpp>
+
+#include <vector>
+
 #include "Transaction.hpp"
+#include "FieldData.hpp"
 
 namespace tell {
 namespace store {
@@ -11,16 +20,23 @@ class ClientHandle;
 } // namespace store
 } // namespace tell
 
-namespace telldb {
+namespace tell {
+namespace db {
+
+class BdTreeBackend;
 
 class TellClient {
+public: // types
+    using tree_cache = bdtree::logical_table_cache<std::vector<FieldData>, uint64_t, BdTreeBackend>;
+private:
     friend class TellDBImpl;
     tell::store::ClientHandle& _handle;
+    tree_cache& mCache;
 private:
-    TellClient(tell::store::ClientHandle& handle)
+    TellClient(tell::store::ClientHandle& handle, tree_cache& cache)
         : _handle(handle)
+        , mCache(cache)
     {}
-
 public:
     Transaction startTransaction();
 
@@ -44,4 +60,5 @@ public: // interface to work outside of a transaction
             const char* selection, uint32_t queryLength, const char* query);
 };
 
+} // namespace db
 } // namespace telldb

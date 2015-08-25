@@ -26,6 +26,8 @@ set(TELLDB_SRCS
         src/TellDB.cpp
         src/TellClient.cpp
         src/Transaction.cpp
+        src/RemoteCounter.cpp
+        src/BdTreeBackend.cpp
 )
 
 set(TELLDB_COMMON_HDR
@@ -38,5 +40,6 @@ target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(telldb PRIVATE ${Crossbow_LIBRARIES})
 target_link_libraries(telldb PUBLIC tellstore-client)
+target_link_libraries(telldb PRIVATE bdtree)
 
 add_subdirectory(benchmark)
