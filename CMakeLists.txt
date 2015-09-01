@@ -28,12 +28,15 @@ set(TELLDB_SRCS
         src/Transaction.cpp
         src/RemoteCounter.cpp
         src/BdTreeBackend.cpp
+        src/FieldData.cpp
+        src/TableCache.cpp
 )
 
 set(TELLDB_COMMON_HDR
         telldb/TellDB.hpp
         telldb/TellClient.hpp
         telldb/Transaction.hpp
+        telldb/FieldData.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})

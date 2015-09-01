@@ -1,5 +1,4 @@
 #include "BdTreeBackend.hpp"
-
 #include <bdtree/error_code.h>
 
 #include <stdexcept>

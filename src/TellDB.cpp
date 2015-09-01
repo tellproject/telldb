@@ -4,8 +4,6 @@
 #include <crossbow/infinio/InfinibandService.hpp>
 #include <bdtree/logical_table_cache.h>
 
-#include "BdTreeBackend.hpp"
-
 namespace tell {
 namespace db {
 

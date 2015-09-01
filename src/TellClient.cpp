@@ -12,56 +12,6 @@ namespace db {
 using namespace tell::store;
 using namespace std;
 
-namespace {
-
-struct EqualVisitor : public boost::static_visitor<bool>
-{
-    template<class T, class U>
-    bool operator()(const T&, const U&) const {
-        // this must never happen
-        LOG_ERROR("Type error, comparing two different types");
-        return false;
-    }
-
-    template<class T>
-    bool operator()(const T& a, const T& b) const {
-        return a == b;
-    }
-};
-
-struct LessVisitor : public boost::static_visitor<bool>
-{
-    template<class T, class U>
-    bool operator()(const T&, const U&) const {
-        // this must never happen
-        LOG_ERROR("Type error, comparing two different types");
-        return false;
-    }
-
-    template<class T>
-    bool operator()(const T& a, const T& b) const {
-        return a < b;
-    }
-};
-
-} // anonymous namespace
-
-bool FieldData::operator==(const FieldData& other) const
-{
-    if (mData == boost::none || other.mData == boost::none) {
-        return false;
-    }
-    return boost::apply_visitor(EqualVisitor(), mData.get(), other.mData.get());
-}
-
-bool FieldData::operator< (const FieldData& other) const
-{
-    if (mData == boost::none || other.mData == boost::none) {
-        return false;
-    }
-    return boost::apply_visitor(LessVisitor(), mData.get(), other.mData.get());
-}
-
 Transaction TellClient::startTransaction()
 {
     return _handle.startTransaction();

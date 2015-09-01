@@ -1,7 +1,5 @@
 #pragma once
 
-#include "TableData.hpp"
-
 #include <tellstore/ClientManager.hpp>
 #include <tellstore/GenericTuple.hpp>
 #include <tellstore/Table.hpp>
@@ -14,8 +12,12 @@
 #include <cstdint>
 #include <memory>
 
+#include "TableData.hpp"
+
 namespace tell {
 namespace db {
+
+class TableData;
 
 class BdTreeNodeData {
 public:
