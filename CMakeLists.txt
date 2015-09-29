@@ -23,11 +23,9 @@ find_package(TellStore REQUIRED)
 find_package(Jemalloc REQUIRED)
 
 set(TELLDB_SRCS
-        src/TellDB.cpp
 )
 
 set(TELLDB_COMMON_HDR
-        telldb/TellDB.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
