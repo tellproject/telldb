@@ -25,6 +25,7 @@ find_package(Jemalloc REQUIRED)
 set(TELLDB_SRCS
     src/TellDB.cpp
     src/Transaction.cpp
+    src/TransactionCache.cpp
     src/Field.cpp
 )
 
@@ -32,6 +33,8 @@ set(TELLDB_COMMON_HDR
     telldb/TellDB.hpp
     telldb/Transaction.hpp
     telldb/Field.hpp
+    telldb/Tuple.hpp
+    telldb/Types.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})

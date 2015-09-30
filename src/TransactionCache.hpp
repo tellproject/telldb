@@ -20,32 +20,36 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "TransactionCache.hpp"
-
+#pragma once
+#include <telldb/Types.hpp>
 #include <telldb/Transaction.hpp>
-#include <tellstore/ClientManager.hpp>
+#include <tellstore/Table.hpp>
+#include <crossbow/string.hpp>
 
-using namespace tell::store;
+#include <unordered_map>
 
 namespace tell {
 namespace db {
 
-Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
-    : mHandle(handle)
-    , mTx(tx)
-    , mContext(context)
-    , mType(type)
-    , mCache(new TransactionCache())
-{}
+class TableCache {
+    tell::store::Table mTable;
+public:
+    TableCache(tell::store::Table&& table);
+};
 
-Future<table_t> Transaction::openTable(const crossbow::string& name) {
-    return mCache->openTable(mHandle, name);
-}
+class TransactionCache {
+    friend class Future<table_t>;
+    std::unordered_map<table_t, TableCache*> mTables;
+    std::unordered_map<crossbow::string, table_t> mTableNames;
+public:
+    ~TransactionCache();
+public:
+    Future<table_t> openTable(tell::store::ClientHandle& handle, const crossbow::string& name);
+    Future<Tuple> get(table_t table, key_t key);
+private:
+    void addTable(tell::store::Table&& table);
+};
 
-Future<Tuple> Transaction::get(table_t table, key_t key) {
-    return mCache->get(table, key);
-}
-
-}
+} // namespace db
 } // namespace tell
 

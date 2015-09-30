@@ -20,32 +20,54 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "TransactionCache.hpp"
-
-#include <telldb/Transaction.hpp>
-#include <tellstore/ClientManager.hpp>
-
-using namespace tell::store;
+#pragma once
+#include <cstdint>
+#include <type_traits>
+#include <functional>
 
 namespace tell {
 namespace db {
 
-Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
-    : mHandle(handle)
-    , mTx(tx)
-    , mContext(context)
-    , mType(type)
-    , mCache(new TransactionCache())
-{}
+struct table_t {
+    uint64_t value;
+    operator uint64_t() const {
+        return value;
+    }
+};
 
-Future<table_t> Transaction::openTable(const crossbow::string& name) {
-    return mCache->openTable(mHandle, name);
-}
+struct key_t {
+    uint64_t value;
+    operator uint64_t() const {
+        return value;
+    }
+};
 
-Future<Tuple> Transaction::get(table_t table, key_t key) {
-    return mCache->get(table, key);
-}
-
-}
+static_assert(std::is_pod<table_t>::value, "table_t is not a POD");
+static_assert(std::is_pod<key_t>::value, "key_t is not a POD");
+} // namespace db
 } // namespace tell
+
+namespace std {
+
+template<>
+struct hash<tell::db::key_t> {
+    using argument_type = tell::db::key_t;
+    using result_type = size_t;
+    std::hash<uint64_t> mImpl;
+    size_t operator() (const argument_type& arg) const {
+        return mImpl(arg.value);
+    }
+};
+
+template<>
+struct hash<tell::db::table_t> {
+    using argument_type = tell::db::table_t;
+    using result_type = size_t;
+    std::hash<uint64_t> mImpl;
+    size_t operator() (const argument_type& arg) const {
+        return mImpl(arg.value);
+    }
+};
+
+}
 

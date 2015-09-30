@@ -30,6 +30,19 @@
 namespace tell {
 namespace db {
 
+/**
+ * @brief General data type for fields
+ *
+ * This is a dynamic type. It can be used to store any database type
+ * and compare values with each other. This is the type returned for
+ * queries and the type which should be constructed for updates.
+ *
+ * Fields are dynamically typed, but their type is still strong. That
+ * means, that no implicit casting will occur on any time. Even comparison
+ * between two types of integers will fail. To do these kind of
+ * operations the user has to cast them to the correct type explicitely.
+ * Field provides a function to cast values to other types.
+ */
 class Field {
     store::FieldType type;
     boost::any value;
@@ -70,6 +83,13 @@ public:
     bool operator<=(const Field& rhs) const;
     bool operator==(const Field& rhs) const;
 public:
+    /**
+     * @brief Cast to another type
+     *
+     * Fields are strongly typed. To convert a value to another
+     * type one can use this cast function. This function might
+     * throw std::bad_cast if the cast fails.
+     */
     Field cast(tell::store::FieldType type);
 };
 

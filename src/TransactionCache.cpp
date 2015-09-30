@@ -21,8 +21,6 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "TransactionCache.hpp"
-
-#include <telldb/Transaction.hpp>
 #include <tellstore/ClientManager.hpp>
 
 using namespace tell::store;
@@ -30,22 +28,53 @@ using namespace tell::store;
 namespace tell {
 namespace db {
 
-Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
-    : mHandle(handle)
-    , mTx(tx)
-    , mContext(context)
-    , mType(type)
-    , mCache(new TransactionCache())
-{}
-
-Future<table_t> Transaction::openTable(const crossbow::string& name) {
-    return mCache->openTable(mHandle, name);
+Future<table_t>::Future(std::shared_ptr<GetTableResponse>&& resp, TransactionCache& cache)
+    : resp(resp)
+    , cache(cache)
+{
 }
 
-Future<Tuple> Transaction::get(table_t table, key_t key) {
-    return mCache->get(table, key);
+bool Future<table_t>::valid() const {
+    if (!resp) {
+        return true;
+    }
+    return resp->done();
 }
 
+bool Future<table_t>::wait() const {
+    if (!resp) {
+        return false;
+    }
+    return resp->wait();
 }
+
+table_t Future<table_t>::get() {
+    if (!resp) {
+        return result;
+    }
+    auto table = resp->get();
+    resp = nullptr;
+    result.value = table.tableId();
+    cache.addTable(std::move(table));
+    return result;
+}
+
+Future<table_t> TransactionCache::openTable(ClientHandle& handle, const crossbow::string& name) {
+    return Future<table_t>(handle.getTable(name), *this);
+}
+
+TransactionCache::~TransactionCache() {
+    for (auto& p : mTables) {
+        delete p.second;
+    }
+}
+
+void TransactionCache::addTable(tell::store::Table&& table) {
+    auto id = table.tableId();
+    mTables.emplace(table_t { id }, new TableCache(std::move(table)));
+}
+
+template class Future<table_t>;
+} // namespace db
 } // namespace tell
 

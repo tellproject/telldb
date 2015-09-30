@@ -93,7 +93,7 @@ private: // private access
     void exec(Fun fun) {
         mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
             auto& clientTransaction = handle.startTransaction(mTxType);
-            Transaction transaction(clientTransaction, context.mContext, mTxType);
+            Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
             context.executeHandler(fun, transaction);
         });
     }
