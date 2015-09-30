@@ -23,13 +23,20 @@ find_package(TellStore REQUIRED)
 find_package(Jemalloc REQUIRED)
 
 set(TELLDB_SRCS
+    src/TellDB.cpp
+    src/Transaction.cpp
+    src/Field.cpp
 )
 
 set(TELLDB_COMMON_HDR
+    telldb/TellDB.hpp
+    telldb/Transaction.hpp
+    telldb/Field.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(telldb PRIVATE ${Crossbow_LIBRARIES})
+target_link_libraries(telldb PUBLIC tellstore-client)
 
 add_subdirectory(benchmark)
