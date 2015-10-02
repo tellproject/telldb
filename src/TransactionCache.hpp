@@ -30,24 +30,25 @@
 
 namespace tell {
 namespace db {
+namespace impl {
+struct TellDBContext;
+} // namespace impl
 
-class TableCache {
-    tell::store::Table mTable;
-public:
-    TableCache(tell::store::Table&& table);
-};
-
+class TableCache;
 class TransactionCache {
     friend class Future<table_t>;
     std::unordered_map<table_t, TableCache*> mTables;
-    std::unordered_map<crossbow::string, table_t> mTableNames;
+    impl::TellDBContext& context;
+    tell::store::ClientTransaction& mTransaction;
 public:
+    TransactionCache(impl::TellDBContext& context, tell::store::ClientTransaction& transaction);
     ~TransactionCache();
 public:
     Future<table_t> openTable(tell::store::ClientHandle& handle, const crossbow::string& name);
     Future<Tuple> get(table_t table, key_t key);
 private:
-    void addTable(tell::store::Table&& table);
+    table_t addTable(const tell::store::Table& table);
+    table_t addTable(const crossbow::string& name, const tell::store::Table& table);
 };
 
 } // namespace db

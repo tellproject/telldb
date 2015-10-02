@@ -38,6 +38,8 @@ set(TELLDB_SRCS
     src/Transaction.cpp
     src/TransactionCache.cpp
     src/Field.cpp
+    src/TableCache.cpp
+    src/Tuple.cpp
 )
 
 set(TELLDB_COMMON_HDR

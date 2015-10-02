@@ -30,16 +30,20 @@
 #include <unordered_map>
 
 namespace tell {
+namespace store {
+class Tuple;
+} // namespace store
 namespace db {
 
 class Tuple : public tell::store::AbstractTuple {
 public: // types
     using id_t = tell::store::Schema::id_t;
 private: // members
-    std::shared_ptr<std::unordered_map<crossbow::string, id_t>> mSchema;
+    const tell::store::Record& mRecord;
     std::vector<Field> mFields;
 public: // Construction
-
+    Tuple(const tell::store::Record& record,
+          const tell::store::Tuple& tuple);
 public: // Access
     Field& operator[] (id_t id) {
         return mFields[id];
@@ -48,13 +52,8 @@ public: // Access
         return mFields[id];
     }
 
-    Field& operator[] (const crossbow::string& name) {
-        return mFields[mSchema->operator[](name)];
-    }
-    const Field& operator[] (const crossbow::string& name) const {
-        id_t id = mSchema->at(name);
-        return mFields[id];
-    }
+    Field& operator[] (const crossbow::string& name);
+    const Field& operator[] (const crossbow::string& name) const;
 
     Field& at(id_t id) {
         return mFields.at(id);
@@ -64,13 +63,12 @@ public: // Access
         return mFields.at(id);
     }
 
-    Field& at(const crossbow::string& name) {
-        return mFields.at(mSchema->at(name));
-    }
+    Field& at(const crossbow::string& name);
 
-    const Field& at(const crossbow::string& name) const {
-        return mFields.at(mSchema->at(name));
-    }
+    const Field& at(const crossbow::string& name) const;
+public:
+    size_t size() const override;
+    void serialize(char* dest) const override;
 };
 
 } // namespace db

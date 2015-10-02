@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <memory>
 
+#include <crossbow/singleton.hpp>
 #include <tellstore/ClientConfig.hpp>
 #include <tellstore/ClientManager.hpp>
 #include <tellstore/TransactionRunner.hpp>
@@ -41,6 +42,9 @@ class ClientManager;
 namespace impl {
 
 struct TellDBContext {
+    std::unordered_map<table_t, tell::store::Table*> tables;
+    std::unordered_map<crossbow::string, table_t> tableNames;
+    ~TellDBContext();
 };
 
 template<class Context>

@@ -20,17 +20,37 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include <telldb/TellDB.hpp>
+#pragma once
+#include <telldb/Transaction.hpp>
 
 namespace tell {
+namespace store {
+class Table;
+class Tuple;
+} // namespace store
 namespace db {
 namespace impl {
-TellDBContext::~TellDBContext() {
-    for (auto& p : tables) {
-        delete p.second;
-    }
-}
+
+struct TellDBContext;
+
 } // namespace impl
+
+class TableCache {
+    using id_t = tell::store::Schema::id_t;
+    friend class Future<Tuple>;
+    const tell::store::Table& mTable;
+    impl::TellDBContext& mContext;
+    tell::store::ClientTransaction& mTransaction;
+    std::unordered_map<key_t, std::pair<Tuple*, bool>> mCache;
+    std::unordered_map<key_t, Tuple*> mChanges;
+    std::unordered_map<crossbow::string, id_t> mSchema;
+public:
+    TableCache(const tell::store::Table& table, impl::TellDBContext& context, tell::store::ClientTransaction& transaction);
+    Future<Tuple> get(key_t key);
+private:
+    const Tuple& addTuple(key_t key, const tell::store::Tuple& tuple);
+};
+
 } // namespace db
 } // namespace tell
 

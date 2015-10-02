@@ -46,11 +46,11 @@ namespace db {
 class Field {
     store::FieldType type;
     boost::any value;
+public:
     Field(store::FieldType t, boost::any v)
         : type(t)
         , value(v)
     {}
-public:
     static Field create(int16_t value) {
         return Field(store::FieldType::SMALLINT, value);
     }

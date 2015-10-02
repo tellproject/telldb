@@ -29,13 +29,14 @@ using namespace tell::store;
 
 namespace tell {
 namespace db {
+using namespace impl;
 
 Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
     : mHandle(handle)
     , mTx(tx)
     , mContext(context)
     , mType(type)
-    , mCache(new TransactionCache())
+    , mCache(new TransactionCache(context, tx))
 {}
 
 Future<table_t> Transaction::openTable(const crossbow::string& name) {
@@ -46,6 +47,6 @@ Future<Tuple> Transaction::get(table_t table, key_t key) {
     return mCache->get(table, key);
 }
 
-}
+} // namespace db
 } // namespace tell
 
