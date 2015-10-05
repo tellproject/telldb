@@ -44,12 +44,13 @@ namespace db {
  * Field provides a function to cast values to other types.
  */
 class Field {
-    store::FieldType type;
-    boost::any value;
+    friend class Tuple;
+    store::FieldType mType;
+    boost::any mValue;
 public:
     Field(store::FieldType t, boost::any v)
-        : type(t)
-        , value(v)
+        : mType(t)
+        , mValue(v)
     {}
     static Field create(int16_t value) {
         return Field(store::FieldType::SMALLINT, value);
@@ -73,7 +74,7 @@ public:
         return Field(store::FieldType::BLOB, value);
     }
     static Field createNull() {
-        return Field(store::FieldType::NULLTYPE, nullptr);
+        return Field(store::FieldType::NULLTYPE, boost::any());
     }
 
 public:
@@ -91,6 +92,26 @@ public:
      * throw std::bad_cast if the cast fails.
      */
     Field cast(tell::store::FieldType type);
+    /**
+     * @brief Checks whether the field is NULL
+     */
+    bool null() const {
+        return mType == store::FieldType::NULLTYPE;
+    }
+    /**
+     * @brief Get the type of this field.
+     */
+    store::FieldType type() const {
+        return mType;
+    }
+    /**
+     * @brief Return the value of this field.
+     */
+    const boost::any& value() const {
+        return mValue;
+    }
+private:
+    size_t serialize(store::FieldType type, char* dest) const;
 };
 
 } // namespace db

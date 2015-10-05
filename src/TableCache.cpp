@@ -70,7 +70,7 @@ Future<Tuple> TableCache::get(key_t key) {
 }
 
 const Tuple& TableCache::addTuple(key_t key, const tell::store::Tuple& tuple) {
-    auto res = new Tuple(mSchema, mTable.record(), tuple);
+    auto res = new Tuple(mTable.record(), tuple);
     mCache.insert(std::make_pair(key, std::make_pair(res, tuple.isNewest())));
     return *res;
 }
