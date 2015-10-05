@@ -39,7 +39,6 @@ class TableCache {
     using id_t = tell::store::Schema::id_t;
     friend class Future<Tuple>;
     const tell::store::Table& mTable;
-    impl::TellDBContext& mContext;
     tell::store::ClientTransaction& mTransaction;
     std::unordered_map<key_t, std::pair<Tuple*, bool>> mCache;
     std::unordered_map<key_t, Tuple*> mChanges;

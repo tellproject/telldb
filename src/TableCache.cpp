@@ -34,7 +34,6 @@ TableCache::TableCache(const tell::store::Table& table,
         impl::TellDBContext& context,
         tell::store::ClientTransaction& transaction)
     : mTable(table)
-    , mContext(context)
     , mTransaction(transaction)
 {
     id_t currId = 0;
