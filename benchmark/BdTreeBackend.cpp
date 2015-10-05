@@ -81,7 +81,7 @@ std::unique_ptr<store::Tuple> BdTreeBaseTable::doRead(uint64_t key, std::error_c
 }
 
 bool BdTreeBaseTable::doInsert(uint64_t key, store::GenericTuple tuple, std::error_code& ec) {
-    auto insertFuture = mHandle.insert(mTable.table(), key, 0x0u, std::move(tuple), true);
+    auto insertFuture = mHandle.insert(mTable.table(), key, 0x0u, std::move(tuple));
     if (!insertFuture->waitForResult()) {
         ec = insertFuture->error();
         return false;

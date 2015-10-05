@@ -98,7 +98,7 @@ void RemoteCounter::requestNewBatch(store::ClientHandle& handle) {
                     createCounterTuple(nextCounter + RESERVED_BATCH));
         } else {
             nextCounter = 0x0u;
-            counterFuture = handle.insert(*mCounterTable, mCounterId, 0x0u, createCounterTuple(RESERVED_BATCH), true);
+            counterFuture = handle.insert(*mCounterTable, mCounterId, 0x0u, createCounterTuple(RESERVED_BATCH));
         }
     } while (!counterFuture->get());
 
