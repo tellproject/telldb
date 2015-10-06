@@ -25,6 +25,7 @@
 #include "Types.hpp"
 
 #include <tellstore/TransactionType.hpp>
+#include <crossbow/ChunkAllocator.hpp>
 
 /**
  * @mainpage TellDB - Running transactions on Tell
@@ -150,6 +151,7 @@ class Transaction {
     tell::store::ClientHandle& mHandle;
     tell::store::ClientTransaction& mTx;
     impl::TellDBContext& mContext;
+    crossbow::ChunkMemoryPool mPool;
     tell::store::TransactionType mType;
     std::unique_ptr<TransactionCache> mCache;
 public:
@@ -191,6 +193,26 @@ public: // finish
      * @returns true iff the transaction committed successfully
      */
     bool commit();
+public: // non-commands
+    /**
+     * @brief Gets the memory pool of this transaction
+     *
+     * TellDB transactions make use of the fact that transactions
+     * have a limited run time. Therefore they use ChunkAllocators
+     * to allocate and deallocate memory. A ChunkAllocator allocates
+     * memory block-wise and then gives out chunks of memory from
+     * these blocks. Therefore allocations on the heap get nearly
+     * as cheap as stack allocations. Deleting an object allocated
+     * from this pool does not have any effects. As soon as the
+     * transaction gets destroyed, all memory from this pool gets
+     * freed.
+     *
+     * The user can use the same pool to allocate objects and bind
+     * the object lifetime to the lifetime of the transaction. This
+     * should be done carefully, as using it incorrectly might lead
+     * to memory errors.
+     */
+    crossbow::ChunkMemoryPool& pool();
 };
 
 } // namespace db

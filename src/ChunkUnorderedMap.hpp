@@ -20,32 +20,15 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "TransactionCache.hpp"
-
-#include <telldb/Transaction.hpp>
-#include <tellstore/ClientManager.hpp>
-
-using namespace tell::store;
+#pragma once
+#include <unordered_map>
+#include <crossbow/ChunkAllocator.hpp>
 
 namespace tell {
 namespace db {
-using namespace impl;
 
-Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
-    : mHandle(handle)
-    , mTx(tx)
-    , mContext(context)
-    , mType(type)
-    , mCache(new (&mPool) TransactionCache(context, tx, mPool))
-{}
-
-Future<table_t> Transaction::openTable(const crossbow::string& name) {
-    return mCache->openTable(mHandle, name);
-}
-
-Future<Tuple> Transaction::get(table_t table, key_t key) {
-    return mCache->get(table, key);
-}
+template<class K, class V, class Hash = std::hash<K>, class KeyEqual = std::equal_to<K>>
+using ChunkUnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, crossbow::ChunkAllocator<std::pair<const K, V>>>;
 
 } // namespace db
 } // namespace tell

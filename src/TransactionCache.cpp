@@ -61,9 +61,13 @@ table_t Future<table_t>::get() {
     return result;
 }
 
-TransactionCache::TransactionCache(TellDBContext& context, tell::store::ClientTransaction& transaction)
+TransactionCache::TransactionCache(TellDBContext& context,
+        tell::store::ClientTransaction& transaction,
+        crossbow::ChunkMemoryPool& pool)
     : context(context)
     , mTransaction(transaction)
+    , mPool(pool)
+    , mTables(&pool)
 {}
 
 Future<table_t> TransactionCache::openTable(ClientHandle& handle, const crossbow::string& name) {
@@ -91,7 +95,7 @@ TransactionCache::~TransactionCache() {
 
 table_t TransactionCache::addTable(const tell::store::Table& table) {
     auto id = table.tableId();
-    mTables.emplace(table_t { id }, new TableCache(table, context, mTransaction));
+    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, context, mTransaction, mPool));
     table_t res;
     res.value = id;
     return res;

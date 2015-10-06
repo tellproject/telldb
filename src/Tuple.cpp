@@ -61,8 +61,11 @@ boost::any deserialize(tell::store::FieldType type, const char* const data) {
 
 Tuple::Tuple(
         const tell::store::Record& record,
-        const tell::store::Tuple& tuple)
+        const tell::store::Tuple& tuple,
+        crossbow::ChunkMemoryPool& pool)
     : mRecord(record)
+    , mPool(pool)
+    , mFields(&mPool)
 {
     int numFields = record.fieldCount();
     for (int i = 0; i < numFields; ++i) {

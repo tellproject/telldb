@@ -22,6 +22,9 @@
  */
 #pragma once
 #include <telldb/Transaction.hpp>
+#include <crossbow/ChunkAllocator.hpp>
+
+#include "ChunkUnorderedMap.hpp"
 
 namespace tell {
 namespace store {
@@ -37,7 +40,7 @@ struct TellDBContext;
 
 class Tuple;
 
-class TableCache {
+class TableCache : public crossbow::ChunkObject {
 private: // types
     using id_t = tell::store::Schema::id_t;
     friend class Future<Tuple>;
@@ -47,11 +50,15 @@ private: // types
 private: // members
     const tell::store::Table& mTable;
     tell::store::ClientTransaction& mTransaction;
-    std::unordered_map<key_t, std::pair<Tuple*, bool>> mCache;
-    std::unordered_map<key_t, std::pair<Tuple*, Operation>> mChanges;
-    std::unordered_map<crossbow::string, id_t> mSchema;
+    crossbow::ChunkMemoryPool& mPool;
+    ChunkUnorderedMap<key_t, std::pair<Tuple*, bool>> mCache;
+    ChunkUnorderedMap<key_t, std::pair<Tuple*, Operation>> mChanges;
+    ChunkUnorderedMap<crossbow::string, id_t> mSchema;
 public: // Construction and Destruction
-    TableCache(const tell::store::Table& table, impl::TellDBContext& context, tell::store::ClientTransaction& transaction);
+    TableCache(const tell::store::Table& table,
+            impl::TellDBContext& context,
+            tell::store::ClientTransaction& transaction,
+            crossbow::ChunkMemoryPool& pool);
     ~TableCache();
 public: // operations
     Future<Tuple> get(key_t key);

@@ -31,9 +31,14 @@ namespace db {
 
 TableCache::TableCache(const tell::store::Table& table,
         impl::TellDBContext& context,
-        tell::store::ClientTransaction& transaction)
+        tell::store::ClientTransaction& transaction,
+        crossbow::ChunkMemoryPool& pool)
     : mTable(table)
     , mTransaction(transaction)
+    , mPool(pool)
+    , mCache(&pool)
+    , mChanges(&pool)
+    , mSchema(&pool)
 {
     id_t currId = 0;
     const auto& schema = table.record().schema();
@@ -89,7 +94,7 @@ void TableCache::insert(key_t key, const Tuple& tuple) {
         }
     } else if (c->second.second == Operation::Delete) {
         c->second.second = Operation::Update;
-        c->second.first = new Tuple(tuple);
+        c->second.first = new (&mPool) Tuple(tuple);
     } else {
         throw TupleExistsException(key);
     }
@@ -103,7 +108,7 @@ void TableCache::update(key_t key, const Tuple& tuple) {
                 throw TupleDoesNotExist(key);
             }
             delete i->second.first;
-            i->second.first = new Tuple(tuple);
+            i->second.first = new (&mPool) Tuple(tuple);
             return;
         }
     }
@@ -116,7 +121,7 @@ void TableCache::update(key_t key, const Tuple& tuple) {
         } 
         // We do an optimistic update - if the tuple is not cached, we assume that there
         // won't be an update
-        mChanges.emplace(key, std::make_pair(new Tuple(tuple), Operation::Update));
+        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(tuple), Operation::Update));
     }
 }
 
@@ -150,7 +155,7 @@ void TableCache::remove(key_t key) {
 }
 
 const Tuple& TableCache::addTuple(key_t key, const tell::store::Tuple& tuple) {
-    auto res = new Tuple(mTable.record(), tuple);
+    auto res = new (&mPool) Tuple(mTable.record(), tuple, mPool);
     mCache.insert(std::make_pair(key, std::make_pair(res, tuple.isNewest())));
     return *res;
 }

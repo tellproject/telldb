@@ -25,6 +25,7 @@
 
 #include <tellstore/AbstractTuple.hpp>
 #include <tellstore/Record.hpp>
+#include <crossbow/ChunkAllocator.hpp>
 
 #include <memory>
 #include <unordered_map>
@@ -35,21 +36,25 @@ class Tuple;
 } // namespace store
 namespace db {
 
-class Tuple : public tell::store::AbstractTuple {
+class Tuple : public tell::store::AbstractTuple, public crossbow::ChunkObject {
 public: // types
     using id_t = tell::store::Schema::id_t;
 private: // members
     const tell::store::Record& mRecord;
-    std::vector<Field> mFields;
+    crossbow::ChunkMemoryPool& mPool;
+    std::vector<Field, crossbow::ChunkAllocator<Field>> mFields;
 public: // Construction
     Tuple(const tell::store::Record& record,
-          const tell::store::Tuple& tuple);
+          const tell::store::Tuple& tuple,
+          crossbow::ChunkMemoryPool& pool);
     Tuple(const Tuple& other)
         : mRecord(other.mRecord)
+        , mPool(other.mPool)
         , mFields(other.mFields)
     {}
     Tuple(Tuple&& other)
         : mRecord(other.mRecord)
+        , mPool(other.mPool)
         , mFields(std::move(other.mFields))
     {}
 public: // Access
