@@ -87,6 +87,18 @@ Future<Tuple> TransactionCache::get(table_t table, key_t key) {
     return cache->get(key);
 }
 
+void TransactionCache::insert(table_t table, key_t key, const Tuple& tuple) {
+    mTables.at(table)->insert(key, tuple);
+}
+
+void TransactionCache::update(table_t table, key_t key, const Tuple& tuple) {
+    mTables.at(table)->update(key, tuple);
+}
+
+void TransactionCache::remove(table_t table, key_t key) {
+    mTables.at(table)->remove(key);
+}
+
 TransactionCache::~TransactionCache() {
     for (auto& p : mTables) {
         delete p.second;

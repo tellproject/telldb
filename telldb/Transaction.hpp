@@ -172,7 +172,74 @@ public: // table operation
      */
     Future<table_t> openTable(const crossbow::string& name);
 public: // read-write operations
+    /**
+     * @brief Gets a tuple from the storage
+     *
+     * This will get a tuple with a given key and table id from
+     * the storage. This function returns a future, which means
+     * that it returns immediately but the user can wait on it
+     * for the result. If the tuple is cached, this function
+     * will return immediately.
+     *
+     * @param table The table id
+     * @param key   The key of the tuple
+     * @return A future holding the result
+     */
     Future<Tuple> get(table_t tableId, key_t key);
+    /**
+     * @brief Inserts a new tuple
+     *
+     * This will insert a new tuple into the storage. In praxis,
+     * this will only write into the local cache, so no communication
+     * with the storage does happen here. Furthermore, only basic conflict
+     * detection will happen. It will only check whether the given
+     * key already exists in the local cache, in which case it will
+     * throw an exception. Otherwise, conflict detection will occur
+     * during the commit phase.
+     *
+     * @param table The table id
+     * @param key   The key of the tuple
+     * @param tuple The tuple to insert
+     * @throws TupleExistsException If the key is already in the local cache.
+     */
+    void insert(table_t table, key_t key, const Tuple& tuple);
+    /**
+     * @brief Updates a tuple
+     *
+     * This will update an existing tuple into the storage. In praxis,
+     * this will only write into the local cache, so no communication
+     * with the storage does happen here. Furthermore, only basic conflict
+     * detection will happen. It will only check whether the given
+     * key already exists in the local cache, in which case it will
+     * check whether the last read did return the newest version. If
+     * this is not the case, we already know that a conflict occurred
+     * and the function will throw an exception.  Otherwise, conflict
+     * detection will occur during the commit phase.
+     *
+     * @param table The table id
+     * @param key   The key of the tuple
+     * @param tuple The tuple to update
+     * @throws Conflict If a conflict is detected.
+     */
+    void update(table_t table, key_t key, const Tuple& tuple);
+    /**
+     * @brief Deletes a tuple
+     *
+     * This will delete an existing tuple. In praxis,
+     * this will only write into the local cache, so no communication
+     * with the storage does happen here. Furthermore, only basic conflict
+     * detection will happen. It will only check whether the given
+     * key already exists in the local cache, in which case it will
+     * check whether the last read did return the newest version. If
+     * this is not the case, we already know that a conflict occurred
+     * and the function will throw an exception.  Otherwise, conflict
+     * detection will occur during the commit phase.
+     *
+     * @param table The table id
+     * @param key   The key of the tuple
+     * @throws Conflict If a conflict is detected.
+     */
+    void remove(table_t table, key_t key);
 public: // finish
     /**
      * @brief Aborts the current transaction

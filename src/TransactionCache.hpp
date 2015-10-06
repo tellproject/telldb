@@ -51,6 +51,9 @@ public:
 public:
     Future<table_t> openTable(tell::store::ClientHandle& handle, const crossbow::string& name);
     Future<Tuple> get(table_t table, key_t key);
+    void insert(table_t table, key_t key, const Tuple& tuple);
+    void update(table_t table, key_t key, const Tuple& tuple);
+    void remove(table_t table, key_t key);
 private:
     table_t addTable(const tell::store::Table& table);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);
