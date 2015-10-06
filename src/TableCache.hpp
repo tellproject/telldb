@@ -35,17 +35,29 @@ struct TellDBContext;
 
 } // namespace impl
 
+class Tuple;
+
 class TableCache {
+private: // types
     using id_t = tell::store::Schema::id_t;
     friend class Future<Tuple>;
+    enum class Operation {
+        Insert, Update, Delete
+    };
+private: // members
     const tell::store::Table& mTable;
     tell::store::ClientTransaction& mTransaction;
     std::unordered_map<key_t, std::pair<Tuple*, bool>> mCache;
-    std::unordered_map<key_t, Tuple*> mChanges;
+    std::unordered_map<key_t, std::pair<Tuple*, Operation>> mChanges;
     std::unordered_map<crossbow::string, id_t> mSchema;
-public:
+public: // Construction and Destruction
     TableCache(const tell::store::Table& table, impl::TellDBContext& context, tell::store::ClientTransaction& transaction);
+    ~TableCache();
+public: // operations
     Future<Tuple> get(key_t key);
+    void insert(key_t key, const Tuple& tuple);
+    void update(key_t key, const Tuple& tuple);
+    void remove(key_t key);
 private:
     const Tuple& addTuple(key_t key, const tell::store::Tuple& tuple);
 };

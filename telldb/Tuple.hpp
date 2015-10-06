@@ -44,6 +44,14 @@ private: // members
 public: // Construction
     Tuple(const tell::store::Record& record,
           const tell::store::Tuple& tuple);
+    Tuple(const Tuple& other)
+        : mRecord(other.mRecord)
+        , mFields(other.mFields)
+    {}
+    Tuple(Tuple&& other)
+        : mRecord(other.mRecord)
+        , mFields(std::move(other.mFields))
+    {}
 public: // Access
     Field& operator[] (id_t id) {
         return mFields[id];

@@ -40,6 +40,7 @@ set(TELLDB_SRCS
     src/Field.cpp
     src/TableCache.cpp
     src/Tuple.cpp
+    src/Exceptions.cpp
 )
 
 set(TELLDB_COMMON_HDR
@@ -48,6 +49,7 @@ set(TELLDB_COMMON_HDR
     telldb/Field.hpp
     telldb/Tuple.hpp
     telldb/Types.hpp
+    telldb/Exceptions.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})

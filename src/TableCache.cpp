@@ -22,10 +22,9 @@
  */
 #include "TableCache.hpp"
 #include <tellstore/ClientManager.hpp>
+#include <telldb/Exceptions.hpp>
 
 #include <boost/lexical_cast.hpp>
-
-using namespace tell::store;
 
 namespace tell {
 namespace db {
@@ -52,11 +51,25 @@ TableCache::TableCache(const tell::store::Table& table,
     }
 }
 
+TableCache::~TableCache() {
+    for (auto& p : mCache) {
+        delete p.second.first;
+    }
+    for (auto& p : mChanges) {
+        if (p.second.second != Operation::Delete) {
+            delete p.second.first;
+        }
+    }
+}
+
 Future<Tuple> TableCache::get(key_t key) {
     {
         auto iter = mChanges.find(key);
         if (iter != mChanges.end()) {
-            return Future<Tuple>(key, iter->second);
+            if (iter->second.second == Operation::Delete) {
+                throw TupleExistsException(key);
+            }
+            return Future<Tuple>(key, iter->second.first);
         }
     }
     {
@@ -66,6 +79,74 @@ Future<Tuple> TableCache::get(key_t key) {
         }
     }
     return Future<Tuple>(key, this, mTransaction.get(mTable, key.value));
+}
+
+void TableCache::insert(key_t key, const Tuple& tuple) {
+    auto c = mChanges.find(key);
+    if (c == mChanges.end()) {
+        if (mCache.count(key) != 0) {
+            throw TupleExistsException(key);
+        }
+    } else if (c->second.second == Operation::Delete) {
+        c->second.second = Operation::Update;
+        c->second.first = new Tuple(tuple);
+    } else {
+        throw TupleExistsException(key);
+    }
+}
+
+void TableCache::update(key_t key, const Tuple& tuple) {
+    {
+        auto i = mChanges.find(key);
+        if (i != mChanges.end()) {
+            if (i->second.second == Operation::Delete) {
+                throw TupleDoesNotExist(key);
+            }
+            delete i->second.first;
+            i->second.first = new Tuple(tuple);
+            return;
+        }
+    }
+    {
+        auto i = mCache.find(key);
+        if (i != mCache.end()) {
+            if (i->second.second) {
+                throw Conflict(key);
+            }
+        } 
+        // We do an optimistic update - if the tuple is not cached, we assume that there
+        // won't be an update
+        mChanges.emplace(key, std::make_pair(new Tuple(tuple), Operation::Update));
+    }
+}
+
+void TableCache::remove(key_t key) {
+    {
+        auto i = mChanges.find(key);
+        if (i != mChanges.end()) {
+            if (i->second.second == Operation::Delete) {
+                throw TupleDoesNotExist(key);
+            } else if (i->second.second == Operation::Insert) {
+                mChanges.erase(i);
+                return;
+            }
+            delete i->second.first;
+            i->second.first = nullptr;
+            i->second.second = Operation::Delete;
+            return;
+        }
+    }
+    {
+        auto i = mCache.find(key);
+        if (i != mCache.end()) {
+            if (i->second.second) {
+                throw Conflict(key);
+            }
+        } 
+        // We do an optimistic update - if the tuple is not cached, we assume that there
+        // won't be an update
+        mChanges.emplace(key, std::make_pair(nullptr, Operation::Delete));
+    }
 }
 
 const Tuple& TableCache::addTuple(key_t key, const tell::store::Tuple& tuple) {
@@ -80,7 +161,7 @@ Future<Tuple>::Future(key_t key, const Tuple* result)
     , cache(nullptr)
 {}
 
-Future<Tuple>::Future(key_t key, TableCache* cache, std::shared_ptr<GetResponse>&& response)
+Future<Tuple>::Future(key_t key, TableCache* cache, std::shared_ptr<store::GetResponse>&& response)
     : key(key)
     , result(nullptr)
     , cache(cache)
