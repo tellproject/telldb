@@ -148,12 +148,22 @@ extern template class Future<Tuple>;
 #endif // DOXYGEN
 
 class Transaction {
+public: // Types
+    /**
+     *  A string which has a life time equal to the lifetime of the transaction
+     */ 
+    using ChunkString = crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>>;
+private:
     tell::store::ClientHandle& mHandle;
     tell::store::ClientTransaction& mTx;
     impl::TellDBContext& mContext;
     crossbow::ChunkMemoryPool mPool;
     tell::store::TransactionType mType;
     std::unique_ptr<TransactionCache> mCache;
+    // will be set to true if there is any data
+    // written to the storage
+    bool mDidWriteToStorage;
+    ChunkString mLog;
 public:
     Transaction(tell::store::ClientHandle& handle,
             tell::store::ClientTransaction& tx,
@@ -257,9 +267,12 @@ public: // finish
      * might fail if there is a write-write conflict
      * with another transaction.
      *
-     * @returns true iff the transaction committed successfully
+     * @throws Conflict if a conflict gets detected.
      */
-    bool commit();
+    void commit();
+private:
+    void writeBack();
+    void writeUndoLog(const ChunkString& log);
 public: // non-commands
     /**
      * @brief Gets the memory pool of this transaction

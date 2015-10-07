@@ -41,9 +41,33 @@ class ClientManager;
 
 namespace impl {
 
+class ClientTable {
+    template<class T> friend class ::tell::db::ClientManager;
+    ClientTable() {}
+    void init(store::ClientHandle& handle);
+    void destroy(store::ClientHandle& handle);
+    uint64_t mClientId = 0;
+    std::unique_ptr<store::Table> mClientsTable = nullptr;
+    std::unique_ptr<store::Table> mTransactionsTable = nullptr;
+public:
+    /**
+     * @brief Table where clients register themselves
+     */
+    const store::Table& clientsTable() const {
+        return *mClientsTable;
+    }
+
+    const store::Table& txTable() const {
+        return *mTransactionsTable;
+    }
+};
+
+
 struct TellDBContext {
     std::unordered_map<table_t, tell::store::Table*> tables;
     std::unordered_map<crossbow::string, table_t> tableNames;
+    ClientTable* clientTable;
+    TellDBContext(ClientTable* table) : clientTable(table) {}
     ~TellDBContext();
 };
 
@@ -63,8 +87,9 @@ struct FiberContext {
     }
 
     template<class... Args>
-    FiberContext(Args&&... args)
+    FiberContext(ClientTable* table, Args&&... args)
         : mUserContext(std::forward<Args>(args)...)
+        , mContext(table)
     {}
 };
 
@@ -156,7 +181,7 @@ template<class Context>
 class ClientManager {
 private:
     tell::store::ClientManager<impl::FiberContext<Context>> mClientManager;
-
+    impl::ClientTable mClientTable;
 public:
     /**
      * @brief Constructor
@@ -176,8 +201,20 @@ public:
      */
     template<class... Args>
     ClientManager(tell::store::ClientConfig& clientConfig, Args... args)
-        : mClientManager(clientConfig, args...)
-    {}
+        : mClientManager(clientConfig, &mClientTable, args...)
+    {
+        store::TransactionRunner::executeBlocking(mClientManager,
+                [this](store::ClientHandle &handle, impl::FiberContext<Context>&){
+            mClientTable.init(handle);
+        });
+    }
+
+    ~ClientManager() {
+        store::TransactionRunner::executeBlocking(mClientManager,
+                [this](store::ClientHandle &handle, impl::FiberContext<Context>&){
+            mClientTable.destroy(handle);
+        });
+    }
 
     /**
      * @brief starts a new transaction and executes fun within its context

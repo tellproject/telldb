@@ -22,7 +22,9 @@
  */
 #include "TransactionCache.hpp"
 
+#include <telldb/TellDB.hpp>
 #include <telldb/Transaction.hpp>
+#include <telldb/Exceptions.hpp>
 #include <tellstore/ClientManager.hpp>
 
 using namespace tell::store;
@@ -37,7 +39,9 @@ Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBCont
     , mContext(context)
     , mType(type)
     , mCache(new (&mPool) TransactionCache(context, tx, mPool))
-{}
+    , mLog(&mPool)
+{
+}
 
 Future<table_t> Transaction::openTable(const crossbow::string& name) {
     return mCache->openTable(mHandle, name);
@@ -57,6 +61,55 @@ void Transaction::update(table_t table, key_t key, const Tuple& tuple) {
 
 void Transaction::remove(table_t table, key_t key) {
     return mCache->remove(table, key);
+}
+
+void Transaction::commit() {
+    try {
+        writeBack();
+        mTx.commit();
+    } catch (Conflict& c) {
+        rollback();
+        throw c;
+    }
+}
+
+void Transaction::rollback() {
+    const char* log = mLog.data();
+    auto sz = mLog.size();
+    std::vector<std::shared_ptr<ModificationResponse>> responses;
+    for (unsigned i = 0; i < sz; i += 16) {
+        uint64_t table = *reinterpret_cast<const uint64_t*>(log + i);
+        uint64_t key = *reinterpret_cast<const uint64_t*>(log + i + 8);
+        auto t = mContext.tables.at(table_t {table});
+        responses.push_back(mTx.revert(*t, key));
+    }
+    // TODO: revert index changes
+    for (auto& resp : responses) {
+        resp->wait();
+    }
+    mLog.clear();
+    mTx.commit();
+}
+
+void Transaction::writeUndoLog(const ChunkString& log) {
+    bool isNew = mLog.empty();
+    auto newLog = mLog + log;
+    auto version = mTx.snapshot().version();
+    if (isNew) {
+        auto resp = mHandle.insert(mContext.clientTable->txTable(),
+                version, 0, store::GenericTuple{std::make_pair("value", newLog)});
+        resp->waitForResult();
+    } else {
+        auto resp = mHandle.update(mContext.clientTable->txTable(),
+                version, 0, store::GenericTuple{std::make_pair("value", newLog)});
+    }
+    mLog = newLog;
+}
+
+void Transaction::writeBack() {
+    auto undoLog = mCache->undoLog();
+    writeUndoLog(undoLog);
+    mCache->writeBack();
 }
 
 } // namespace db

@@ -54,6 +54,9 @@ public:
     void insert(table_t table, key_t key, const Tuple& tuple);
     void update(table_t table, key_t key, const Tuple& tuple);
     void remove(table_t table, key_t key);
+public:
+    crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> undoLog() const;
+    void writeBack();
 private:
     table_t addTable(const tell::store::Table& table);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);
