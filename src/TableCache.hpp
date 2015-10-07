@@ -68,10 +68,12 @@ public: // operations
     void update(key_t key, const Tuple& tuple);
     void remove(key_t key);
     void writeIndexes();
-    void writeBack();
 public: // state access
     const ChangesMap& changes() const {
         return mChanges;
+    }
+    const store::Table& table() const {
+        return mTable;
     }
 private:
     const Tuple& addTuple(key_t key, const tell::store::Tuple& tuple);

@@ -23,6 +23,7 @@
 #include "TransactionCache.hpp"
 #include "TableCache.hpp"
 #include <telldb/TellDB.hpp>
+#include <telldb/Exceptions.hpp>
 #include <tellstore/ClientManager.hpp>
 
 using namespace tell::store;
@@ -128,8 +129,32 @@ table_t TransactionCache::addTable(const crossbow::string& name, const tell::sto
 }
 
 void TransactionCache::writeBack() {
+    using Resp = std::shared_ptr<store::ModificationResponse>;
+    std::vector<Resp, crossbow::ChunkAllocator<Resp>> responses(&mPool);
+    std::vector<key_t, crossbow::ChunkAllocator<key_t>> keys(&mPool);
     for (auto p : mTables) {
-        p.second->writeBack();
+        const auto& table = p.second->table();
+        const auto& changes = p.second->changes();
+        for (auto change : changes) {
+            auto key = change.first;
+            auto k = key.value;
+            keys.push_back(key);
+            switch (change.second.second) {
+            case TableCache::Operation::Insert:
+                responses.emplace_back(mTransaction.insert(table, k, *change.second.first));
+                break;
+            case TableCache::Operation::Update:
+                responses.emplace_back(mTransaction.update(table, k, *change.second.first));
+                break;
+            case TableCache::Operation::Delete:
+                responses.emplace_back(mTransaction.remove(table, k));
+            }
+        }
+    }
+    for (int i = responses.size(); i > 0; --i) {
+        if (responses[i - 1]->error()) {
+            throw Conflict(keys[i - 1]);
+        }
     }
     // at this point we know that there won't be any conflicts
     // and we now write back the indexes
