@@ -93,17 +93,16 @@ void Transaction::rollback() {
 
 void Transaction::writeUndoLog(const ChunkString& log) {
     bool isNew = mLog.empty();
-    auto newLog = mLog + log;
+    mLog.append(log.begin(), log.end());
     auto version = mTx.snapshot().version();
     if (isNew) {
         auto resp = mHandle.insert(mContext.clientTable->txTable(),
-                version, 0, store::GenericTuple{std::make_pair("value", newLog)});
+                version, 0, store::GenericTuple{std::make_pair("value", crossbow::string(mLog.c_str(), mLog.size()))});
         resp->waitForResult();
     } else {
         auto resp = mHandle.update(mContext.clientTable->txTable(),
-                version, 0, store::GenericTuple{std::make_pair("value", newLog)});
+                version, 0, store::GenericTuple{std::make_pair("value", crossbow::string(mLog.c_str(), mLog.size()))});
     }
-    mLog = newLog;
 }
 
 void Transaction::writeBack() {

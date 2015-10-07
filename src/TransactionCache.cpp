@@ -127,6 +127,36 @@ table_t TransactionCache::addTable(const crossbow::string& name, const tell::sto
     return addTable(*t);
 }
 
+void TransactionCache::writeBack() {
+    for (auto p : mTables) {
+        p.second->writeBack();
+    }
+    // at this point we know that there won't be any conflicts
+    // and we now write back the indexes
+    for (auto p : mTables) {
+        p.second->writeIndexes();
+    }
+}
+
+crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> TransactionCache::undoLog() const {
+    size_t numChanges = 0;
+    for (const auto& t : mTables) {
+        const auto& c = t.second->changes();
+        numChanges += c.size();
+    }
+    crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> res(&mPool);
+    res.reserve(numChanges * 16);
+    for (const auto& t : mTables) {
+        const auto& cs = t.second->changes();
+        for (const auto& c : cs) {
+            char l[16];
+            memcpy(l, &t.first.value, 8);
+            memcpy(l + 8, &c.first.value, 8);
+            res.append(l, 16);
+        }
+    }
+    return res;
+}
 
 template class Future<table_t>;
 } // namespace db

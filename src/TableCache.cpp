@@ -154,6 +154,37 @@ void TableCache::remove(key_t key) {
     }
 }
 
+void TableCache::writeBack() {
+    using Resp = std::shared_ptr<store::ModificationResponse>;
+    std::vector<Resp, crossbow::ChunkAllocator<Resp>> responses(&mPool);
+    std::vector<key_t, crossbow::ChunkAllocator<key_t>> keys(&mPool);
+    responses.reserve(mChanges.size());
+    for (auto change : mChanges) {
+        auto key = change.first;
+        auto k = key.value;
+        keys.push_back(key);
+        switch (change.second.second) {
+        case Operation::Insert:
+            responses.emplace_back(mTransaction.insert(mTable, k, *change.second.first));
+            break;
+        case Operation::Update:
+            responses.emplace_back(mTransaction.update(mTable, k, *change.second.first));
+            break;
+        case Operation::Delete:
+            responses.emplace_back(mTransaction.remove(mTable, k));
+        }
+    }
+    for (int i = responses.size(); i > 0; --i) {
+        if (responses[i - 1]->error()) {
+            throw Conflict(keys[i - 1]);
+        }
+    }
+}
+
+void TableCache::writeIndexes() {
+    // TODO: Implement
+}
+
 const Tuple& TableCache::addTuple(key_t key, const tell::store::Tuple& tuple) {
     auto res = new (&mPool) Tuple(mTable.record(), tuple, mPool);
     mCache.insert(std::make_pair(key, std::make_pair(res, tuple.isNewest())));

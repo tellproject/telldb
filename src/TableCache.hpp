@@ -41,18 +41,20 @@ struct TellDBContext;
 class Tuple;
 
 class TableCache : public crossbow::ChunkObject {
-private: // types
-    using id_t = tell::store::Schema::id_t;
-    friend class Future<Tuple>;
+public: // public types
     enum class Operation {
         Insert, Update, Delete
     };
+    using ChangesMap = ChunkUnorderedMap<key_t, std::pair<Tuple*, Operation>>;
+private: // private types
+    using id_t = tell::store::Schema::id_t;
+    friend class Future<Tuple>;
 private: // members
     const tell::store::Table& mTable;
     tell::store::ClientTransaction& mTransaction;
     crossbow::ChunkMemoryPool& mPool;
     ChunkUnorderedMap<key_t, std::pair<Tuple*, bool>> mCache;
-    ChunkUnorderedMap<key_t, std::pair<Tuple*, Operation>> mChanges;
+    ChangesMap mChanges;
     ChunkUnorderedMap<crossbow::string, id_t> mSchema;
 public: // Construction and Destruction
     TableCache(const tell::store::Table& table,
@@ -65,6 +67,12 @@ public: // operations
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& tuple);
     void remove(key_t key);
+    void writeIndexes();
+    void writeBack();
+public: // state access
+    const ChangesMap& changes() const {
+        return mChanges;
+    }
 private:
     const Tuple& addTuple(key_t key, const tell::store::Tuple& tuple);
 };
