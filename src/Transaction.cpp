@@ -43,6 +43,12 @@ Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBCont
 {
 }
 
+Transaction::~Transaction() {
+    if (!mCommitted) {
+        rollback();
+    }
+}
+
 Future<table_t> Transaction::openTable(const crossbow::string& name) {
     return mCache->openTable(mHandle, name);
 }
@@ -64,13 +70,11 @@ void Transaction::remove(table_t table, key_t key) {
 }
 
 void Transaction::commit() {
-    try {
-        writeBack();
-        mTx.commit();
-    } catch (Conflict& c) {
-        rollback();
-        throw c;
-    }
+    writeBack();
+    // if this succeeds, we can write back the indexes
+    mCache->writeIndexes();
+    mTx.commit();
+    mCommitted = true;
 }
 
 void Transaction::rollback() {
@@ -89,6 +93,7 @@ void Transaction::rollback() {
     }
     mLog.clear();
     mTx.commit();
+    mCommitted = true;
 }
 
 void Transaction::writeUndoLog(const ChunkString& log) {

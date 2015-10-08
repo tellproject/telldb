@@ -121,9 +121,16 @@ private: // private access
     template<class Fun>
     void exec(Fun fun) {
         mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
-            auto& clientTransaction = handle.startTransaction(mTxType);
-            Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
-            context.executeHandler(fun, transaction);
+            try {
+                auto& clientTransaction = handle.startTransaction(mTxType);
+                Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
+                context.executeHandler(fun, transaction);
+            } catch (std::exception& e) {
+                std::cerr << "Exception: " << e.what() << std::endl;
+            } catch (...) {
+                // This should never happen
+                std::cerr << "Got an unknown error" << std::endl;
+            }
         });
     }
 public: // construction

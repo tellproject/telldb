@@ -57,6 +57,7 @@ public:
 public:
     crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> undoLog() const;
     void writeBack();
+    void writeIndexes();
 private:
     table_t addTable(const tell::store::Table& table);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);

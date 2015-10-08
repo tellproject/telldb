@@ -164,11 +164,13 @@ private:
     // written to the storage
     bool mDidWriteToStorage;
     ChunkString mLog;
+    bool mCommitted = false;
 public:
     Transaction(tell::store::ClientHandle& handle,
             tell::store::ClientTransaction& tx,
             impl::TellDBContext& context,
             tell::store::TransactionType type);
+    ~Transaction();
 public: // table operation
     /**
      * @brief Opens the table, gets the schema and prepares the caches.

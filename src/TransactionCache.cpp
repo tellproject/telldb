@@ -156,8 +156,9 @@ void TransactionCache::writeBack() {
             throw Conflict(keys[i - 1]);
         }
     }
-    // at this point we know that there won't be any conflicts
-    // and we now write back the indexes
+}
+
+void TransactionCache::writeIndexes() {
     for (auto p : mTables) {
         p.second->writeIndexes();
     }
