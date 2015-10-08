@@ -87,11 +87,11 @@ uint64_t RemoteCounter::remoteValue(store::ClientHandle& handle) const {
 
 void RemoteCounter::requestNewBatch(store::ClientHandle& handle) {
     uint64_t nextCounter;
-    std::shared_ptr<store::ModificationResponse> counterFuture;
-    do {
+    while (true) {
         auto getFuture = handle.get(*mCounterTable, mCounterId);
         auto tuple = getFuture->get();
 
+        std::shared_ptr<store::ModificationResponse> counterFuture;
         if (tuple->found()) {
             nextCounter = static_cast<uint64_t>(mCounterTable->field<int64_t>(gCounterFieldName, tuple->data()));
             counterFuture = handle.update(*mCounterTable, mCounterId, tuple->version(),
@@ -100,7 +100,14 @@ void RemoteCounter::requestNewBatch(store::ClientHandle& handle) {
             nextCounter = 0x0u;
             counterFuture = handle.insert(*mCounterTable, mCounterId, 0x0u, createCounterTuple(RESERVED_BATCH));
         }
-    } while (!counterFuture->get());
+        auto ec = counterFuture->error();
+        if (!ec) {
+            break;
+        }
+        if (ec != store::error::not_in_snapshot) {
+            throw std::system_error(ec);
+        }
+    }
 
     if (mCounter == mReserved) {
         mCounter = nextCounter;

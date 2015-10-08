@@ -82,44 +82,42 @@ std::unique_ptr<store::Tuple> BdTreeBaseTable::doRead(uint64_t key, std::error_c
 
 bool BdTreeBaseTable::doInsert(uint64_t key, store::GenericTuple tuple, std::error_code& ec) {
     auto insertFuture = mHandle.insert(mTable.table(), key, 0x0u, std::move(tuple));
-    if (!insertFuture->waitForResult()) {
-        ec = insertFuture->error();
-        return false;
+    ec = insertFuture->error();
+    if (!ec) {
+        return true;
     }
-    if (!insertFuture->get()) {
+    if (ec == store::error::invalid_write || ec == store::error::not_in_snapshot) {
         ec = make_error_code(bdtree::error::object_exists);
-        return false;
     }
-
-    return true;
+    return false;
 }
 
 bool BdTreeBaseTable::doUpdate(uint64_t key, store::GenericTuple tuple, uint64_t version, std::error_code& ec) {
     auto updateFuture = mHandle.update(mTable.table(), key, version, std::move(tuple));
-    if (!updateFuture->waitForResult()) {
-        ec = updateFuture->error();
-        return false;
+    ec = updateFuture->error();
+    if (!ec) {
+        return true;
     }
-    if (!updateFuture->get()) {
+    if (ec == store::error::invalid_write) {
+        ec = make_error_code(bdtree::error::object_doesnt_exist);
+    } else if (ec == store::error::not_in_snapshot) {
         ec = make_error_code(bdtree::error::wrong_version);
-        return false;
     }
-
-    return true;
+    return false;
 }
 
 bool BdTreeBaseTable::doRemove(uint64_t key, uint64_t version, std::error_code& ec) {
     auto removeFuture = mHandle.remove(mTable.table(), key, version);
-    if (!removeFuture->waitForResult()) {
-        ec = removeFuture->error();
-        return false;
+    ec = removeFuture->error();
+    if (!ec) {
+        return true;
     }
-    if (!removeFuture->get()) {
+    if (ec == store::error::invalid_write) {
+        ec = make_error_code(bdtree::error::object_doesnt_exist);
+    } else if (ec == store::error::not_in_snapshot) {
         ec = make_error_code(bdtree::error::wrong_version);
-        return false;
     }
-
-    return true;
+    return false;
 }
 
 store::Table BdTreePointerTable::createTable(store::ClientHandle& handle, const crossbow::string& name) {
