@@ -22,9 +22,11 @@
  */
 #pragma once
 #include <telldb/Transaction.hpp>
+#include <bdtree/logical_table_cache.h>
 #include <crossbow/ChunkAllocator.hpp>
 
 #include "ChunkUnorderedMap.hpp"
+#include "Indexes.hpp"
 
 namespace tell {
 namespace store {

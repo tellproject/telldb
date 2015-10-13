@@ -22,6 +22,7 @@
  */
 #pragma once
 #include "Types.hpp"
+#include "Field.hpp"
 
 #include <exception>
 #include <crossbow/string.hpp>
@@ -30,6 +31,8 @@ namespace tell {
 namespace db {
 
 class Exception : public std::exception {
+public:
+    ~Exception();
 };
 
 class KeyException : public Exception {
@@ -41,24 +44,52 @@ protected:
         : mKey(key)
         , mMsg(std::forward<Str>(msg))
     {}
+    ~KeyException();
 public:
     key_t key() const noexcept;
-    const char* what() const noexcept;
+    const char* what() const noexcept override;
+};
+
+class OpenTableException : public Exception {
+    crossbow::string mMsg;
+public:
+    template<class Str>
+    OpenTableException(Str&& msg)
+        : mMsg(std::forward<Str>(msg))
+    {}
+    OpenTableException(const OpenTableException&) = default;
+    OpenTableException(OpenTableException&&) = default;
+    ~OpenTableException();
+    const char* what() const noexcept override { return mMsg.c_str(); }
 };
 
 class TupleExistsException : public KeyException {
 public:
     TupleExistsException(key_t key);
+    ~TupleExistsException();
 };
 
 class TupleDoesNotExist : public KeyException {
 public:
     TupleDoesNotExist(key_t key);
+    ~TupleDoesNotExist();
 };
 
 class Conflict : public KeyException {
 public:
     Conflict(key_t key);
+    ~Conflict();
+};
+
+class UniqueViolation : public Exception {
+    Field mField;
+public:
+    UniqueViolation(const Field& field);
+    ~UniqueViolation();
+    const char* what() const noexcept override;
+    const Field& field() const {
+        return mField;
+    }
 };
 
 } // namespace db

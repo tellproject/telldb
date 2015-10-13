@@ -26,6 +26,13 @@
 namespace tell {
 namespace db {
 
+Exception::~Exception() {}
+KeyException::~KeyException() {}
+OpenTableException::~OpenTableException() {}
+TupleExistsException::~TupleExistsException() {}
+TupleDoesNotExist::~TupleDoesNotExist() {}
+Conflict::~Conflict() {}
+
 // KeyException
 key_t KeyException::key() const noexcept {
     return mKey;

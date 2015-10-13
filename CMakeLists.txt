@@ -41,6 +41,13 @@ set(TELLDB_SRCS
     src/TableCache.cpp
     src/Tuple.cpp
     src/Exceptions.cpp
+    src/BdTreeBackend.cpp
+    src/BdTreeBackend.hpp
+    src/Indexes.cpp
+    src/Indexes.hpp
+    src/RemoteCounter.cpp
+    src/RemoteCounter.hpp
+    src/TableData.hpp
 )
 
 set(TELLDB_COMMON_HDR
@@ -56,5 +63,6 @@ target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(telldb PRIVATE crossbow_allocator)
 target_link_libraries(telldb PUBLIC tellstore-client)
+target_link_libraries(telldb PRIVATE bdtree)
 
 add_subdirectory(benchmark)

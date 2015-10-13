@@ -40,16 +40,20 @@ class TableCache;
 class TransactionCache : public crossbow::ChunkObject {
     friend class Future<table_t>;
     impl::TellDBContext& context;
-    tell::store::ClientTransaction& mTransaction;
+    store::ClientHandle& mHandle;
+    store::ClientTransaction& mTransaction;
     crossbow::ChunkMemoryPool& mPool;
     ChunkUnorderedMap<table_t, TableCache*> mTables;
 public:
     TransactionCache(impl::TellDBContext& context,
-            tell::store::ClientTransaction& transaction,
+            store::ClientHandle& handle,
+            store::ClientTransaction& transaction,
             crossbow::ChunkMemoryPool& pool);
     ~TransactionCache();
-public:
-    Future<table_t> openTable(tell::store::ClientHandle& handle, const crossbow::string& name);
+public: // Schema operations
+    Future<table_t> openTable(const crossbow::string& name);
+    table_t createTable(const crossbow::string& name, const store::Schema& schema);
+public: // Get/Put
     Future<Tuple> get(table_t table, key_t key);
     void insert(table_t table, key_t key, const Tuple& tuple);
     void update(table_t table, key_t key, const Tuple& tuple);

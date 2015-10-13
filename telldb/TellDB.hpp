@@ -63,12 +63,15 @@ public:
 };
 
 
+class Indexes;
+Indexes* createIndexes(store::ClientHandle& handle);
 struct TellDBContext {
+    TellDBContext(ClientTable* table);
+    ~TellDBContext();
     std::unordered_map<table_t, tell::store::Table*> tables;
     std::unordered_map<crossbow::string, table_t> tableNames;
+    std::unique_ptr<Indexes> indexes;
     ClientTable* clientTable;
-    TellDBContext(ClientTable* table) : clientTable(table) {}
-    ~TellDBContext();
 };
 
 template<class Context>
@@ -121,6 +124,9 @@ private: // private access
     template<class Fun>
     void exec(Fun fun) {
         mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
+            if (context.mContext.indexes == nullptr) {
+                context.mContext.indexes.reset(impl::createIndexes(handle));
+            }
             try {
                 auto& clientTransaction = handle.startTransaction(mTxType);
                 Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
@@ -169,7 +175,7 @@ public:
      * @return Whether the transaction was unblocked
      */
     bool unblock() {
-        mTxRunner->unblock();
+        return mTxRunner->unblock();
     }
 };
 

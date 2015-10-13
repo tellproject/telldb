@@ -23,15 +23,26 @@
 #include <telldb/TellDB.hpp>
 #include <random>
 #include <boost/lexical_cast.hpp>
+#include "Indexes.hpp"
 
 namespace tell {
 namespace db {
 namespace impl {
+
+Indexes* createIndexes(store::ClientHandle& handle) {
+    return new Indexes(handle);
+}
+
+TellDBContext::TellDBContext(ClientTable* table)
+    : clientTable(table)
+{}
+
 TellDBContext::~TellDBContext() {
     for (auto& p : tables) {
         delete p.second;
     }
 }
+
 
 void ClientTable::init(store::ClientHandle& handle) {
     std::random_device rd;

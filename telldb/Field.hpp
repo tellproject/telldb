@@ -48,6 +48,7 @@ class Field {
     store::FieldType mType;
     boost::any mValue;
 public:
+    Field() : mType(store::FieldType::NULLTYPE), mValue(nullptr) {}
     Field(store::FieldType t, boost::any v)
         : mType(t)
         , mValue(v)

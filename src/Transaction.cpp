@@ -38,7 +38,7 @@ Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBCont
     , mTx(tx)
     , mContext(context)
     , mType(type)
-    , mCache(new (&mPool) TransactionCache(context, tx, mPool))
+    , mCache(new (&mPool) TransactionCache(context, mHandle, tx, mPool))
     , mLog(&mPool)
 {
 }
@@ -50,7 +50,11 @@ Transaction::~Transaction() {
 }
 
 Future<table_t> Transaction::openTable(const crossbow::string& name) {
-    return mCache->openTable(mHandle, name);
+    return mCache->openTable(name);
+}
+
+table_t Transaction::createTable(const crossbow::string& name, const store::Schema& schema) {
+    return mCache->createTable(name, schema);
 }
 
 Future<Tuple> Transaction::get(table_t table, key_t key) {

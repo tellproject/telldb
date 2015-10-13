@@ -183,6 +183,18 @@ public: // table operation
      * table id.
      */
     Future<table_t> openTable(const crossbow::string& name);
+    /**
+     * @brief Creates a new table with the given schema.
+     *
+     * This creates a new table with the given schema. It is important,
+     * that tables get created with this method. Do not use the lower
+     * level TellStore interface to do this! This interface will also create
+     * the tables necassary to store the indexes.
+     *
+     * @param name The name of the table
+     * @param schema The table schema and the indexes
+     */
+    table_t createTable(const crossbow::string& name, const store::Schema& schema);
 public: // read-write operations
     /**
      * @brief Gets a tuple from the storage

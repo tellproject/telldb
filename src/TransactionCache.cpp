@@ -22,6 +22,7 @@
  */
 #include "TransactionCache.hpp"
 #include "TableCache.hpp"
+#include "Indexes.hpp"
 #include <telldb/TellDB.hpp>
 #include <telldb/Exceptions.hpp>
 #include <tellstore/ClientManager.hpp>
@@ -63,24 +64,39 @@ table_t Future<table_t>::get() {
 }
 
 TransactionCache::TransactionCache(TellDBContext& context,
-        tell::store::ClientTransaction& transaction,
+        store::ClientHandle& handle,
+        store::ClientTransaction& transaction,
         crossbow::ChunkMemoryPool& pool)
     : context(context)
+    , mHandle(handle)
     , mTransaction(transaction)
     , mPool(pool)
     , mTables(&pool)
 {}
 
-Future<table_t> TransactionCache::openTable(ClientHandle& handle, const crossbow::string& name) {
-    if (context.tableNames.count(name)) {
+Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
+    auto iter = context.tableNames.find(name);
+    if (iter != context.tableNames.end()) {
+        auto tableId = iter->second;
         auto res = Future<table_t>(nullptr, *this);
-        res.result.value = context.tableNames[name].value;
-        if (mTables.count(res.result) == 0) {
+        res.result.value = tableId.value;
+        if (mTables.count(tableId) == 0) {
             addTable(*context.tables[res.result]);
         }
         return res;
     }
-    return Future<table_t>(handle.getTable(name), *this);
+    return Future<table_t>(mHandle.getTable(name), *this);
+}
+
+table_t TransactionCache::createTable(const crossbow::string& name, const store::Schema& schema) {
+    auto table = mHandle.createTable(name, schema);
+    table_t tableId{table.tableId()};
+    context.indexes->createIndexes(mTransaction.version(), mHandle, table);
+    context.tableNames.emplace(name, tableId);
+    auto cTable = new Table(table);
+    context.tables.emplace(tableId, cTable);
+    mTables.emplace(tableId, new (&mPool) TableCache(*cTable, context, mTransaction, mPool));
+    return tableId;
 }
 
 Future<Tuple> TransactionCache::get(table_t table, key_t key) {
@@ -115,6 +131,7 @@ table_t TransactionCache::addTable(const tell::store::Table& table) {
 }
 
 table_t TransactionCache::addTable(const crossbow::string& name, const tell::store::Table& table) {
+    context.indexes->openIndexes(mTransaction.version(), mHandle, table);
     table_t res{table.tableId()};
     Table* t = nullptr;
     auto iter = context.tables.find(res);
