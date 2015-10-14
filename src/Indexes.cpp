@@ -29,13 +29,22 @@ using namespace tell::db::impl;
 namespace bdtree {
 
 template<>
-struct null_key<tell::db::impl::KeyType> {
-    static tell::db::impl::KeyType value() {
+struct null_key<tell::db::impl::UniqueKeyType> {
+    static tell::db::impl::UniqueKeyType value() {
         return std::make_tuple(std::vector<Field>{},
-                std::numeric_limits<uint64_t>::max(),
-                0u);
+                std::numeric_limits<uint64_t>::max());
     }
 };
+
+template<>
+struct null_key<tell::db::impl::NonUniqueKeyType> {
+    static tell::db::impl::NonUniqueKeyType value() {
+        return std::make_tuple(std::vector<Field>{},
+                std::numeric_limits<uint64_t>::max(),
+                tell::db::key_t{0});
+    }
+};
+
 } // namespace bdtree
 
 template<class Archiver>
@@ -189,7 +198,8 @@ struct deserialize_policy<Archiver, Field>
 
 namespace bdtree {
 
-template class bdtree::map<tell::db::impl::KeyType, tell::db::impl::ValueType, tell::db::BdTreeBackend>;
+template class map<tell::db::impl::UniqueKeyType, tell::db::impl::UniqueValueType, tell::db::BdTreeBackend>;
+template class map<tell::db::impl::NonUniqueKeyType, tell::db::impl::NonUniqueValueType, tell::db::BdTreeBackend>;
 
 } // namespace bdtree
 
@@ -197,34 +207,41 @@ namespace tell {
 namespace db {
 namespace impl {
 
+BdTree::~BdTree() {}
+
+UniqueBdTree::UniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit)
+        : BdTree(snapshot)
+        , mMap(backend, mCache, mSnapshot.version(), doInit)
+    {}
+
+NonUniqueBdTree::NonUniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit)
+        : BdTree(snapshot)
+        , mMap(backend, mCache, mSnapshot.version(), doInit)
+    {}
+
 bool IndexWrapper::Iterator::done() const {
     return cacheIter == cacheEnd && idxIter == idxEnd;
 }
 
+using namespace commitmanager;
+
 IndexWrapper::IndexWrapper(
+        bool uniqueIndex,
         const std::vector<store::Schema::id_t>& fields,
         BdTreeBackend&& backend,
-        IndexCache& cache,
-        uint64_t txId,
+        const SnapshotDescriptor& snapshot,
         bool init)
     : mFields(fields)
     , mBackend(std::move(backend))
-    , mBdTree(mBackend, cache, txId, init)
-    , mTxId(txId)
+    , mSnapshot(snapshot)
+    , mBdTree(uniqueIndex ?
+            static_cast<BdTree*>(new UniqueBdTree(mSnapshot, mBackend, init)) :
+            static_cast<BdTree*>(new NonUniqueBdTree(mSnapshot, mBackend, init)))
 {
 }
 
-auto IndexWrapper::lower_bound(const std::vector<Field>& key) -> Iterator {
-    KeyType k{key, 0ul, 0u};
-    return Iterator(
-            mBdTree.find(k),
-            mBdTree.end(),
-            mCache.lower_bound(k),
-            mCache.end());
-}
-
 void IndexWrapper::insert(key_t k, const Tuple& tuple) {
-    mCache.emplace(KeyType{keyOf(tuple), std::numeric_limits<uint64_t>::max(), 0u}, std::make_pair(IndexOperation::Insert, k));
+    mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Insert, k));
 }
 
 void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
@@ -232,22 +249,16 @@ void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
     auto newKey = keyOf(next);
     if (oldKey != newKey) {
         mCache.emplace(
-                KeyType{
-                    keyOf(old),
-                    std::numeric_limits<uint64_t>::max(),
-                    0u},
+                keyOf(old),
                 std::make_pair(IndexOperation::Delete, key));
         mCache.emplace(
-                KeyType{
-                    keyOf(next),
-                    std::numeric_limits<uint64_t>::max(),
-                    0u},
+                keyOf(next),
                 std::make_pair(IndexOperation::Insert, key));
     }
 }
 
 void IndexWrapper::remove(key_t key, const Tuple& tuple) {
-    mCache.emplace(KeyType{keyOf(tuple), std::numeric_limits<uint64_t>::max(), 0u}, std::make_pair(IndexOperation::Delete, key));
+    mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Delete, key));
 }
 
 void IndexWrapper::writeBack() {
@@ -280,27 +291,27 @@ Indexes::Indexes(store::ClientHandle& handle) {
 }
 
 std::unordered_map<crossbow::string, IndexWrapper>
-Indexes::openIndexes(uint64_t txId, store::ClientHandle& handle, const store::Table& table) {
+Indexes::openIndexes(const SnapshotDescriptor& snapshot, store::ClientHandle& handle, const store::Table& table) {
     std::unordered_map<crossbow::string, IndexWrapper> res;
     auto iter = mIndexes.find(table_t{table.tableId()});
     if (iter != mIndexes.end()) {
         for (auto& idx : iter->second) {
             res.emplace(idx.first,
                     IndexWrapper(
-                        idx.second->fields,
+                        idx.second->fields.first, // TODO: Unique
+                        idx.second->fields.second,
                         BdTreeBackend(
                             handle,
                             idx.second->ptrTable,
                             idx.second->nodeTable),
-                        mBdTreeCache,
-                        txId,
+                        snapshot,
                         false));
         }
         return res;
     }
     const auto& indexes = table.record().schema().indexes();
     std::vector<std::tuple<crossbow::string,
-        const std::vector<store::Schema::id_t>*,
+        const IndexDescriptor*,
         std::shared_ptr<store::GetTableResponse>,
         std::shared_ptr<store::GetTableResponse>>> responses;
     for (const auto& idx : indexes) {
@@ -335,13 +346,13 @@ Indexes::openIndexes(uint64_t txId, store::ClientHandle& handle, const store::Ta
                 });
         res.emplace(std::get<0>(*it),
                 IndexWrapper(
-                    *std::get<1>(*it),
+                    std::get<1>(*it)->first, // TODO: Unique
+                    std::get<1>(*it)->second,
                     BdTreeBackend(
                         handle,
                         insRes.first->second->ptrTable,
                         insRes.first->second->nodeTable),
-                    mBdTreeCache,
-                    txId,
+                    snapshot,
                     false));
     }
     mIndexes.emplace(table_t{table.tableId()}, std::move(indexMap));
@@ -349,7 +360,7 @@ Indexes::openIndexes(uint64_t txId, store::ClientHandle& handle, const store::Ta
 }
 
 std::unordered_map<crossbow::string, IndexWrapper>
-Indexes::createIndexes(uint64_t txId, store::ClientHandle& handle, const store::Table& table) {
+Indexes::createIndexes(const SnapshotDescriptor& snapshot, store::ClientHandle& handle, const store::Table& table) {
     std::unordered_map<crossbow::string, IndexWrapper> res;
     const auto& indexes = table.record().schema().indexes();
     std::unordered_map<crossbow::string, IndexTables*> indexMap;
@@ -362,13 +373,13 @@ Indexes::createIndexes(uint64_t txId, store::ClientHandle& handle, const store::
                                 TableData(BdTreeNodeTable::createTable(handle, nodeTableName), mCounterTable)});
         res.emplace(idx.first,
                 IndexWrapper(
-                    idx.second,
+                    idx.second.first, // TODO: Unique
+                    idx.second.second,
                     BdTreeBackend(
                         handle,
                         insRes.first->second->ptrTable,
                         insRes.first->second->nodeTable),
-                    mBdTreeCache,
-                    txId,
+                    snapshot,
                     true));
     }
     mIndexes.emplace(table_t{table.tableId()}, indexMap);
