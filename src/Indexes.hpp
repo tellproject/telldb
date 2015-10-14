@@ -40,11 +40,8 @@ namespace impl {
  *  - A version number. This is set to uint64_max by default,
  *    on deletion it is set to the version of the transaction
  *    that made the deletion
- *  - A counter - 0 by default. This is used for non-unique
- *    indexes. If a index is non-unique, we just set this to
- *    a random number until the whole key is unique.
  */
-using KeyType = std::tuple<std::vector<Field>, uint64_t, uint32_t>;
+using KeyType = std::tuple<std::vector<Field>, uint64_t>;
 /**
  * The value for an index map is simply the key of of the tuple
  */
@@ -68,6 +65,10 @@ class ClientHandle;
 } // namespace store
 namespace db {
 namespace impl {
+
+class BdTree {
+public:
+};
 
 enum class IndexOperation {
     Insert, Delete
@@ -124,6 +125,9 @@ public: // Modifications
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& old, const Tuple& next);
     void remove(key_t key, const Tuple& tuple);
+public: // commit helper functions
+    crossbow::string undoLog() const;
+    void writeBack();
 private:
     std::vector<Field> keyOf(const Tuple& tuple);
 };

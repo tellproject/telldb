@@ -250,6 +250,17 @@ void IndexWrapper::remove(key_t key, const Tuple& tuple) {
     mCache.emplace(KeyType{keyOf(tuple), std::numeric_limits<uint64_t>::max(), 0u}, std::make_pair(IndexOperation::Delete, key));
 }
 
+void IndexWrapper::writeBack() {
+    for (const auto& op : mCache) {
+        switch (op.second.first) {
+        case IndexOperation::Insert:
+            break;
+        case IndexOperation::Delete:
+            break;
+        }
+    }
+}
+
 std::vector<Field> IndexWrapper::keyOf(const Tuple& tuple) {
     std::vector<Field> key;
     key.reserve(mFields.size());
