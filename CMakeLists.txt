@@ -22,16 +22,6 @@ find_package(BdTree REQUIRED)
 find_package(TellStore REQUIRED)
 find_package(Jemalloc REQUIRED)
 
-# Documentation
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-    add_custom_target(doc
-        ${DOXYGEN_EXECUTABLE}
-        ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating API documentation")
-endif()
 
 set(TELLDB_SRCS
     src/TellDB.cpp
@@ -64,5 +54,20 @@ target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(telldb PRIVATE crossbow_allocator)
 target_link_libraries(telldb PUBLIC tellstore-client)
 target_link_libraries(telldb PRIVATE bdtree)
+
+# Documentation
+if(BUILD_GLOBAL_DOCS)
+    set(TELL_PUBLIC_HDRS "${TELL_PUBLIC_HDRS} ${CMAKE_CURRENT_SOURCE_DIR}/telldb" PARENT_SCOPE)
+else()
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+        add_custom_target(doc
+            ${DOXYGEN_EXECUTABLE}
+            ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Generating API documentation")
+    endif()
+endif()
 
 add_subdirectory(benchmark)
