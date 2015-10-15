@@ -51,7 +51,16 @@ using NonUniqueKeyType = decltype(std::tuple_cat(std::declval<UniqueKeyType>(), 
 using ValueType = key_t;
 using UniqueValueType = ValueType;
 // something small - we won't use it
-using NonUniqueValueType = bool;
+using NonUniqueValueType = bdtree::empty_t;
+
+/**
+ * Used for index caching.
+ */
+enum class IndexOperation {
+    Insert, Delete
+};
+
+using Cache = std::multimap<KeyType, std::pair<IndexOperation, ValueType>>;
 
 } // namespace impl
 } // namespace db
@@ -73,73 +82,235 @@ class ClientHandle;
 namespace db {
 namespace impl {
 
+using UniqueMap = bdtree::map<UniqueKeyType, UniqueValueType, BdTreeBackend>;
+using NonUniqueMap = bdtree::map<NonUniqueKeyType, NonUniqueValueType, BdTreeBackend>;
+
+template<class Map>
+struct KeyOf;
+template<class Map>
+struct ValueOf;
+template<class Map>
+struct ValidTo;
+
+template<>
+struct KeyOf<UniqueMap> {
+    using type = UniqueKeyType;
+
+    const KeyType& operator() (const std::pair<UniqueKeyType, UniqueValueType>& p) const {
+        return std::get<0>(p.first);
+    }
+
+    const UniqueKeyType& mapKey(const std::pair<UniqueKeyType, UniqueValueType>& p) const {
+        return p.first;
+    }
+};
+
+template<>
+struct ValueOf<UniqueMap> {
+    const ValueType& operator() (const std::pair<UniqueKeyType, UniqueValueType>& p) const {
+        return p.second;
+    }
+};
+
+template<>
+struct ValidTo<UniqueMap> {
+    uint64_t operator() (const std::pair<UniqueKeyType, UniqueValueType>& p) const {
+        return std::get<1>(p.first);
+    }
+};
+
+template<>
+struct KeyOf<NonUniqueMap> {
+    using type = NonUniqueKeyType;
+
+    const KeyType& operator() (const NonUniqueKeyType& p) const {
+        return std::get<0>(p);
+    }
+
+    const NonUniqueKeyType& mapKey(const NonUniqueKeyType& k) const {
+        return k;
+    }
+};
+
+template<>
+struct ValueOf<NonUniqueMap> {
+    const ValueType& operator() (const NonUniqueKeyType& p) const {
+        return std::get<2>(p);
+    }
+};
+
+template<>
+struct ValidTo<NonUniqueMap> {
+    uint64_t operator() (const NonUniqueKeyType& p) const {
+        return std::get<1>(p);
+    }
+};
+
 class BdTree {
+public:
+    enum class IteratorDirection {
+        Forward, Backward
+    };
+    class IteratorImpl {
+    public:
+        virtual ~IteratorImpl();
+        virtual bool done() const = 0;
+        virtual void next() = 0;
+        virtual const KeyType& key() const = 0;
+        virtual ValueType value() const = 0;
+        virtual IteratorDirection direction() const = 0;
+    };
+    class Iterator {
+        std::unique_ptr<IteratorImpl> mImpl;
+    public:
+        Iterator(std::unique_ptr<IteratorImpl> impl) : mImpl(std::move(impl)) {}
+        bool done() const {
+            return mImpl->done();
+        }
+        void next() {
+            mImpl->next();
+        }
+        const KeyType& key() const {
+            return mImpl->key();
+        }
+        ValueType value() const {
+            return mImpl->value();
+        }
+        IteratorDirection direction() const {
+            return mImpl->direction();
+        }
+    };
+    template<class Map>
+    class TreeCleaner {
+    public:
+        using key_type = typename KeyOf<Map>::type;
+    private:
+        Map& map;
+        std::vector<key_type> garbage;
+    public:
+        TreeCleaner(Map& map) : map(map) {}
+        ~TreeCleaner() {
+            for (const auto& g : garbage) {
+                map.erase(g);
+            }
+        }
+        void add(const key_type& k) {
+            garbage.push_back(k);
+        }
+    };
+    template<class Map>
+    class BaseIterator : public BdTree::IteratorImpl {
+    public:
+        using Direction = BdTree::IteratorDirection;
+    protected:
+        const commitmanager::SnapshotDescriptor& mSnapshot;
+        KeyOf<Map> mKeyOf;
+        ValueOf<Map> mValueOf;
+        ValidTo<Map> mValidTo;
+        typename Map::iterator mapIter;
+        typename Map::iterator mapEnd;
+        std::shared_ptr<TreeCleaner<Map>> cleaner;
+    public:
+        BaseIterator(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter, Map& map)
+            : mSnapshot(snapshot)
+            , mapIter(iter)
+            , cleaner(std::make_shared<TreeCleaner<Map>>(map))
+        {}
+    public:
+        virtual bool done() const  override {
+            return mapIter == mapEnd;
+        }
+        virtual const KeyType& key() const override {
+            return mKeyOf(*mapIter);
+        }
+        virtual ValueType value() const override {
+            return mValueOf(*mapIter);
+        }
+        virtual void next() override {
+            while (this->mapIter != this->mapEnd) {
+                this->forward();
+                if (this->validTo() < this->mSnapshot.lowestActiveVersion()) {
+                    this->cleaner->add(mKeyOf.mapKey(*this->mapIter));
+                } else {
+                    break;
+                }
+            }
+        }
+    protected:
+        uint64_t validTo() const {
+            return mValidTo(*mapIter);
+        }
+        virtual void forward() = 0;
+    };
+
+    template<class Map>
+    class ForwardIterator : public BaseIterator<Map> {
+    public:
+        ForwardIterator(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter , Map& map)
+            : BaseIterator<Map>(snapshot, iter, map) {}
+        virtual IteratorDirection direction() const override {
+            return IteratorDirection::Forward;
+        }
+    protected:
+        virtual void forward() override {
+            ++this->mapIter;
+        }
+    };
+    template<class Map>
+    class BackwardIterator : public BaseIterator<Map> {
+    public:
+        BackwardIterator(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter, Map& map)
+            : BaseIterator<Map>(snapshot, iter, map) {}
+        virtual IteratorDirection direction() const override {
+            return IteratorDirection::Backward;
+        }
+    protected:
+        virtual void forward() override {
+            --this->mapIter;
+        }
+    };
 protected:
     const commitmanager::SnapshotDescriptor& mSnapshot;
 public:
     BdTree(const commitmanager::SnapshotDescriptor& snapshot) : mSnapshot(snapshot) {}
     virtual ~BdTree();
     virtual bool insert(const KeyType& key, const ValueType& value) = 0;
-    virtual bool erase(const KeyType& key) = 0;
+    virtual bool erase(const KeyType& key, const ValueType& value) = 0;
+    virtual Iterator lower_bound(const KeyType& key) = 0;
+    virtual Iterator reverse_lower_bound(const KeyType& key) = 0;
 };
 
 class UniqueBdTree : public BdTree {
     using IndexCache = bdtree::logical_table_cache<UniqueKeyType, UniqueValueType, BdTreeBackend>;
+    using Map = bdtree::map<UniqueKeyType, UniqueValueType, BdTreeBackend>;
 private:
     IndexCache mCache;
-    bdtree::map<UniqueKeyType, UniqueValueType, BdTreeBackend> mMap;
+    Map mMap;
+private: // Types
 public:
     UniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit = false);
     bool insert(const KeyType& key, const ValueType& value) override;
-    bool erase(const KeyType& key) override;
+    bool erase(const KeyType& key, const ValueType& value) override;
+    virtual Iterator lower_bound(const KeyType& key) override;
+    virtual Iterator reverse_lower_bound(const KeyType& key) override;
 };
 
 class NonUniqueBdTree : public BdTree {
     using IndexCache = bdtree::logical_table_cache<NonUniqueKeyType, NonUniqueValueType, BdTreeBackend>;
+    using Map = bdtree::map<NonUniqueKeyType, NonUniqueValueType, BdTreeBackend>;
 private:
     IndexCache mCache;
-    bdtree::map<NonUniqueKeyType, NonUniqueValueType, BdTreeBackend> mMap;
+    Map mMap;
 public:
     NonUniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit = false);
     bool insert(const KeyType& key, const ValueType& value) override;
-    bool erase(const KeyType& key) override;
-};
-
-enum class IndexOperation {
-    Insert, Delete
-};
-
-class IndexIterator {
-public:
-    using Cache = std::multimap<KeyType, std::pair<IndexOperation, ValueType>>;
-    using Index = bdtree::map<KeyType, ValueType, BdTreeBackend>;
-private:
-    Index::iterator idxIter;
-    Index::iterator idxEnd;
-    Cache::iterator cacheIter;
-    Cache::iterator cacheEnd;
-public:
-    IndexIterator(
-            Index::iterator idxBegin,
-            Index::iterator idxEnd,
-            Cache::iterator cacheBegin,
-            Cache::iterator cacheEnd
-            )
-        : idxIter(idxBegin)
-        , idxEnd(idxEnd)
-        , cacheIter(cacheBegin)
-        , cacheEnd(cacheEnd)
-    {}
-    bool done() const;
-    void advance();
-    key_t value() const;
+    bool erase(const KeyType& key, const ValueType& value) override;
+    virtual Iterator lower_bound(const KeyType& key) override;
+    virtual Iterator reverse_lower_bound(const KeyType& key) override;
 };
 
 class IndexWrapper {
 public: // Types
-    using Iterator = IndexIterator;
-    using Index = Iterator::Index;
-    using Cache = Iterator::Cache;
 private:
     std::vector<store::Schema::id_t> mFields;
     BdTreeBackend mBackend;
@@ -154,7 +325,7 @@ public:
             const commitmanager::SnapshotDescriptor& snapshot,
             bool init = false);
 public: // Access
-    Iterator lower_bound(const std::vector<tell::db::Field>& key);
+    BdTree::Iterator lower_bound(const std::vector<tell::db::Field>& key);
 public: // Modifications
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& old, const Tuple& next);
@@ -168,7 +339,6 @@ private:
 
 class Indexes {
 public: // types
-    using Index = typename IndexWrapper::Index;
     using IndexDescriptor = store::Schema::IndexMap::mapped_type;
     struct IndexTables {
         IndexDescriptor fields;
