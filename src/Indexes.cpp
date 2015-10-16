@@ -205,10 +205,35 @@ template class map<tell::db::impl::NonUniqueKeyType, tell::db::impl::NonUniqueVa
 
 namespace tell {
 namespace db {
+
+Iterator::Iterator(std::unique_ptr<IteratorImpl> impl)
+    : mImpl(std::move(impl))
+{}
+Iterator::~Iterator() {}
+bool Iterator::done() const {
+    return mImpl->done();
+}
+
+void Iterator::next() {
+    mImpl->next();
+}
+
+const KeyType& Iterator::key() const {
+    return mImpl->key();
+}
+
+ValueType Iterator::value() const {
+    return mImpl->value();
+}
+
+IteratorDirection Iterator::direction() const {
+    return mImpl->direction();
+}
+
 namespace impl {
 
+IteratorImpl::~IteratorImpl() {}
 BdTree::~BdTree() {}
-BdTree::IteratorImpl::~IteratorImpl() {}
 
 UniqueBdTree::UniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit)
         : BdTree(snapshot)
@@ -236,7 +261,8 @@ bool UniqueBdTree::erase(const KeyType& key, const ValueType& value) {
 }
 
 auto UniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
-    return std::unique_ptr<IteratorImpl>(new ForwardIterator<Map>(mSnapshot, mMap.find(std::make_tuple(key, 0)), mMap));
+    return Iterator(std::unique_ptr<IteratorImpl>(ForwardIterator<Map>::create(mSnapshot,
+                    mMap.find(std::make_tuple(key, 0)), mMap)));
 }
 
 auto UniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
@@ -245,7 +271,7 @@ auto UniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
     while (iter != end && std::get<0>(iter->first) > key) {
         --iter;
     }
-    return std::unique_ptr<IteratorImpl>(new BackwardIterator<Map>(mSnapshot, iter, mMap));
+    return std::unique_ptr<IteratorImpl>(BackwardIterator<Map>::create(mSnapshot, iter, mMap));
 }
 
 bool NonUniqueBdTree::insert(const KeyType& key, const ValueType& value) {
@@ -264,7 +290,7 @@ bool NonUniqueBdTree::erase(const KeyType& key, const ValueType& value) {
 }
 
 auto NonUniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
-    return std::unique_ptr<IteratorImpl>(new ForwardIterator<Map>(mSnapshot, mMap.find(std::make_tuple(key, 0, key_t{0})), mMap));
+    return std::unique_ptr<IteratorImpl>(ForwardIterator<Map>::create(mSnapshot, mMap.find(std::make_tuple(key, 0, key_t{0})), mMap));
 }
 
 auto NonUniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
@@ -273,7 +299,7 @@ auto NonUniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
     while (iter != end && std::get<0>(*iter) > key) {
         --iter;
     }
-    return std::unique_ptr<IteratorImpl>(new BackwardIterator<Map>(mSnapshot, iter, mMap));
+    return std::unique_ptr<IteratorImpl>(BackwardIterator<Map>::create(mSnapshot, iter, mMap));
 }
 
 using namespace commitmanager;
@@ -312,6 +338,28 @@ void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
 
 void IndexWrapper::remove(key_t key, const Tuple& tuple) {
     mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Delete, key));
+}
+
+auto IndexWrapper::lower_bound(const KeyType& key) -> Iterator {
+    std::unique_ptr<CacheIteratorImpl> cIter(new BdTree::StdIter<Cache::iterator>(
+                Iterator::IteratorDirection::Forward,
+                mCache.lower_bound(key),
+                mCache.end()));
+    return Iterator(Iterator::IteratorDirection::Forward, mBdTree->lower_bound(key), std::move(cIter));
+}
+
+auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> Iterator {
+    auto iter = mCache.lower_bound(key);
+    auto rIter = std::reverse_iterator<Cache::iterator>(iter);
+    if (iter == mCache.end()) {
+        rIter = mCache.rend();
+    }
+    std::unique_ptr<CacheIteratorImpl> cIter(
+            new BdTree::StdIter<decltype(rIter)>(
+                Iterator::IteratorDirection::Backward,
+                rIter,
+                mCache.rend()));
+    return Iterator(Iterator::IteratorDirection::Backward, mBdTree->reverse_lower_bound(key), std::move(cIter));
 }
 
 void IndexWrapper::writeBack() {

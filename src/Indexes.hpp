@@ -25,6 +25,7 @@
 #include "BdTreeBackend.hpp"
 #include <telldb/Field.hpp>
 #include <telldb/Types.hpp>
+#include <telldb/TellDB.hpp>
 #include <bdtree/bdtree.h>
 #include <telldb/Tuple.hpp>
 #include <commitmanager/SnapshotDescriptor.hpp>
@@ -35,7 +36,6 @@ namespace tell {
 namespace db {
 namespace impl {
 
-using KeyType = std::vector<Field>;
 /**
  * The key type used in Indexes:
  *  - A list of fields (to support multivalue indexes)
@@ -48,7 +48,6 @@ using NonUniqueKeyType = decltype(std::tuple_cat(std::declval<UniqueKeyType>(), 
 /**
  * The value for an index map is simply the key of of the tuple
  */
-using ValueType = key_t;
 using UniqueValueType = ValueType;
 // something small - we won't use it
 using NonUniqueValueType = bdtree::empty_t;
@@ -146,24 +145,30 @@ struct ValidTo<NonUniqueMap> {
     }
 };
 
+class IteratorImpl {
+public:
+    virtual ~IteratorImpl();
+    virtual bool done() const = 0;
+    virtual void next() = 0;
+    virtual const KeyType& key() const = 0;
+    virtual ValueType value() const = 0;
+    virtual IteratorDirection direction() const = 0;
+    virtual void init() = 0;
+};
+
+class CacheIteratorImpl : public IteratorImpl {
+public:
+    virtual IndexOperation operation() const = 0;
+};
+
+
 class BdTree {
 public:
-    enum class IteratorDirection {
-        Forward, Backward
-    };
-    class IteratorImpl {
+
+    class CacheIterator {
+        std::unique_ptr<CacheIteratorImpl> mImpl;
     public:
-        virtual ~IteratorImpl();
-        virtual bool done() const = 0;
-        virtual void next() = 0;
-        virtual const KeyType& key() const = 0;
-        virtual ValueType value() const = 0;
-        virtual IteratorDirection direction() const = 0;
-    };
-    class Iterator {
-        std::unique_ptr<IteratorImpl> mImpl;
-    public:
-        Iterator(std::unique_ptr<IteratorImpl> impl) : mImpl(std::move(impl)) {}
+        CacheIterator(std::unique_ptr<CacheIteratorImpl> impl) : mImpl(std::move(impl)) {}
         bool done() const {
             return mImpl->done();
         }
@@ -179,7 +184,47 @@ public:
         IteratorDirection direction() const {
             return mImpl->direction();
         }
+        IndexOperation operation() const {
+            return mImpl->operation();
+        }
     };
+
+    template<class Iter>
+    class StdIter : public CacheIteratorImpl {
+    public: // types
+        using iterator = Iter;
+    private:
+        IteratorDirection mDirection;
+        iterator iter;
+        iterator end;
+    public:
+        StdIter(IteratorDirection direction, iterator begin, iterator end)
+            : mDirection(direction)
+            , iter(begin)
+            , end(end)
+        {}
+        virtual bool done() const override {
+            return iter == end;
+        }
+        virtual void next() override {
+            ++iter;
+        }
+        virtual const KeyType& key() const override {
+            return iter->first;
+        }
+        virtual ValueType value() const override {
+            return iter->second.second;
+        }
+        virtual IndexOperation operation() const override {
+            return iter->second.first;
+        }
+        virtual IteratorDirection direction() const override {
+            return mDirection;
+        }
+
+        virtual void init() override {}
+    };
+
     template<class Map>
     class TreeCleaner {
     public:
@@ -199,9 +244,9 @@ public:
         }
     };
     template<class Map>
-    class BaseIterator : public BdTree::IteratorImpl {
+    class BaseIterator : public IteratorImpl {
     public:
-        using Direction = BdTree::IteratorDirection;
+        using Direction = IteratorDirection;
     protected:
         const commitmanager::SnapshotDescriptor& mSnapshot;
         KeyOf<Map> mKeyOf;
@@ -215,7 +260,18 @@ public:
             : mSnapshot(snapshot)
             , mapIter(iter)
             , cleaner(std::make_shared<TreeCleaner<Map>>(map))
-        {}
+        {
+        }
+        virtual void init() override {
+            while (this->mapIter != this->mapEnd) {
+                if (this->validTo() < this->mSnapshot.lowestActiveVersion()) {
+                    this->cleaner->add(mKeyOf.mapKey(*this->mapIter));
+                } else {
+                    break;
+                }
+                forward();
+            }
+        }
     public:
         virtual bool done() const  override {
             return mapIter == mapEnd;
@@ -245,9 +301,15 @@ public:
 
     template<class Map>
     class ForwardIterator : public BaseIterator<Map> {
-    public:
         ForwardIterator(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter , Map& map)
             : BaseIterator<Map>(snapshot, iter, map) {}
+    public:
+        static ForwardIterator* create(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter , Map& map) {
+            auto res = new ForwardIterator(snapshot, iter, map);
+            res->init();
+            return res;
+        }
+
         virtual IteratorDirection direction() const override {
             return IteratorDirection::Forward;
         }
@@ -258,9 +320,14 @@ public:
     };
     template<class Map>
     class BackwardIterator : public BaseIterator<Map> {
-    public:
         BackwardIterator(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter, Map& map)
             : BaseIterator<Map>(snapshot, iter, map) {}
+    public:
+        static BackwardIterator* create(const commitmanager::SnapshotDescriptor& snapshot, typename Map::iterator iter, Map& map) {
+           auto res = new BackwardIterator(snapshot, iter, map); 
+           res->init();
+           return res;
+        }
         virtual IteratorDirection direction() const override {
             return IteratorDirection::Backward;
         }
@@ -309,8 +376,88 @@ public:
     virtual Iterator reverse_lower_bound(const KeyType& key) override;
 };
 
+
 class IndexWrapper {
 public: // Types
+    class Iterator {
+    public: // types
+        using TreeIter = tell::db::Iterator;
+        using CacheIter = BdTree::CacheIterator;
+        using IteratorDirection = IteratorDirection;
+    private: // members
+        IteratorDirection mDirection;
+        TreeIter treeIter;
+        CacheIter cacheIter;
+        bool readFromCache = false;
+        bool isNull(const std::vector<Field>& entry) const {
+            for (const auto& f : entry) {
+                if (!f.null()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        void doSet() {
+            if (cacheIter.done()) { 
+                // In this case we can just iterate over the tree
+                readFromCache = false;
+                return;
+            }
+            if (treeIter.done()) {
+                assert(cacheIter.operation() == IndexOperation::Insert);
+                readFromCache = true;
+                return;
+            }
+            if (cacheIter.value() == treeIter.value()) {
+                assert(cacheIter.operation() == IndexOperation::Delete);
+                treeIter.next();
+                cacheIter.next();
+            }
+            if (cacheIter.key() < treeIter.key()) {
+                readFromCache = true;
+            } else {
+                readFromCache = false;
+            }
+        }
+    public:
+        template<class TI, class CI>
+        Iterator(IteratorDirection direction, TI&& treeIter, CI&& cacheIter)
+            : mDirection(direction)
+            , treeIter(std::forward<TI>(treeIter))
+            , cacheIter(std::forward<CI>(cacheIter)) 
+        {
+            doSet();
+        }
+    public:
+        bool done() const {
+            return treeIter.done() && cacheIter.done();
+        }
+        void next() {
+            if (readFromCache) {
+                cacheIter.next();
+            } else {
+                treeIter.next();
+            }
+            doSet();
+        }
+        const KeyType& key() const {
+            if (readFromCache) {
+                return cacheIter.key();
+            } else {
+                return treeIter.key();
+            }
+        }
+        ValueType value() const {
+            if (readFromCache) {
+                return cacheIter.value();
+            } else {
+                return treeIter.value();
+            }
+        }
+        IteratorDirection direction() const {
+            return mDirection;
+        }
+    };
 private:
     std::vector<store::Schema::id_t> mFields;
     BdTreeBackend mBackend;
@@ -324,12 +471,13 @@ public:
             BdTreeBackend&& backend,
             const commitmanager::SnapshotDescriptor& snapshot,
             bool init = false);
-public: // Access
-    BdTree::Iterator lower_bound(const std::vector<tell::db::Field>& key);
 public: // Modifications
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& old, const Tuple& next);
     void remove(key_t key, const Tuple& tuple);
+public: // find
+    Iterator lower_bound(const KeyType& key);
+    Iterator reverse_lower_bound(const KeyType& key);
 public: // commit helper functions
     crossbow::string undoLog() const;
     void writeBack();
