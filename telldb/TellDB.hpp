@@ -39,10 +39,6 @@ class TransactionFiber;
 template<class Context>
 class ClientManager;
 
-enum class IteratorDirection {
-    Forward, Backward
-};
-
 namespace impl {
 
 class ClientTable {
@@ -103,47 +99,6 @@ struct FiberContext {
 class IteratorImpl;
 
 } // namespace impl
-
-using KeyType = std::vector<Field>;
-using ValueType = key_t;
-
-/**
- * @brief Iterator class used for range queries.
- */
-class Iterator {
-    std::unique_ptr<impl::IteratorImpl> mImpl;
-public:
-    Iterator(std::unique_ptr<impl::IteratorImpl> impl);
-    Iterator(Iterator&&) = default;
-    ~Iterator();
-    /**
-     * @brief Checks whether the iterator is past its last element
-     */
-    bool done() const;
-    /**
-     * @brief Moves the iterator to the next position
-     *
-     * @req !done()
-     */
-    void next();
-    /**
-     * @brief Key of the current position
-     *
-     * @req !done()
-     */
-    const KeyType& key() const;
-    /**
-     * @brief Value of the current position
-     *
-     * @req !done()
-     */
-    ValueType value() const;
-    /**
-     * @brief Direction of the iterator
-     */
-    IteratorDirection direction() const;
-};
-
 
 /**
  * @brief Wrapper class around a transaction context.

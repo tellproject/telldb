@@ -23,6 +23,7 @@
 #pragma once
 #include "Tuple.hpp"
 #include "Types.hpp"
+#include "Iterator.hpp"
 
 #include <tellstore/TransactionType.hpp>
 #include <crossbow/ChunkAllocator.hpp>

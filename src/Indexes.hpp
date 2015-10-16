@@ -28,6 +28,7 @@
 #include <telldb/TellDB.hpp>
 #include <bdtree/bdtree.h>
 #include <telldb/Tuple.hpp>
+#include <telldb/Iterator.hpp>
 #include <commitmanager/SnapshotDescriptor.hpp>
 
 #include <map>
