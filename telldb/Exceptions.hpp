@@ -81,6 +81,13 @@ public:
     ~Conflict();
 };
 
+class IndexConflict : public KeyException {
+    crossbow::string idxName;
+public:
+    IndexConflict(key_t key, const crossbow::string& idxName);
+    ~IndexConflict();
+};
+
 class UniqueViolation : public Exception {
     Field mField;
 public:

@@ -96,6 +96,8 @@ struct FiberContext {
     {}
 };
 
+class IteratorImpl;
+
 } // namespace impl
 
 /**

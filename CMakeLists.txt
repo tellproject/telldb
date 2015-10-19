@@ -47,6 +47,7 @@ set(TELLDB_COMMON_HDR
     telldb/Tuple.hpp
     telldb/Types.hpp
     telldb/Exceptions.hpp
+    telldb/Iterator.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
 target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})

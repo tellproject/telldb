@@ -28,6 +28,7 @@
 #include <crossbow/ChunkAllocator.hpp>
 
 #include "ChunkUnorderedMap.hpp"
+#include "Indexes.hpp"
 
 namespace tell {
 namespace db {
@@ -55,15 +56,17 @@ public: // Schema operations
     table_t createTable(const crossbow::string& name, const store::Schema& schema);
 public: // Get/Put
     Future<Tuple> get(table_t table, key_t key);
+    Iterator lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
+    Iterator reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
     void insert(table_t table, key_t key, const Tuple& tuple);
-    void update(table_t table, key_t key, const Tuple& tuple);
-    void remove(table_t table, key_t key);
+    void update(table_t table, key_t key, const Tuple& from, const Tuple& to);
+    void remove(table_t table, key_t key, const Tuple& tuple);
 public:
     crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> undoLog() const;
     void writeBack();
     void writeIndexes();
 private:
-    table_t addTable(const tell::store::Table& table);
+    table_t addTable(const tell::store::Table& table, std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);
 };
 
