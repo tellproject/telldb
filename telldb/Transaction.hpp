@@ -243,10 +243,11 @@ public: // read-write operations
      *
      * @param table The table id
      * @param key   The key of the tuple
-     * @param tuple The tuple to update
+     * @param from  The current version of the tuple
+     * @param to    The new version of the tuple
      * @throws Conflict If a conflict is detected.
      */
-    void update(table_t table, key_t key, const Tuple& tuple);
+    void update(table_t table, key_t key, const Tuple& from, const Tuple& to);
     /**
      * @brief Deletes a tuple
      *
@@ -262,9 +263,10 @@ public: // read-write operations
      *
      * @param table The table id
      * @param key   The key of the tuple
+     * @param tuple The tuple to delete
      * @throws Conflict If a conflict is detected.
      */
-    void remove(table_t table, key_t key);
+    void remove(table_t table, key_t key, const Tuple& tuple);
 public: // finish
     /**
      * @brief Aborts the current transaction

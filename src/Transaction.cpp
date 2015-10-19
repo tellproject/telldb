@@ -65,12 +65,12 @@ void Transaction::insert(table_t table, key_t key, const Tuple& tuple) {
     return mCache->insert(table, key, tuple);
 }
 
-void Transaction::update(table_t table, key_t key, const Tuple& tuple) {
-    return mCache->update(table, key, tuple);
+void Transaction::update(table_t table, key_t key, const Tuple& from, const Tuple& to) {
+    return mCache->update(table, key, from, to);
 }
 
-void Transaction::remove(table_t table, key_t key) {
-    return mCache->remove(table, key);
+void Transaction::remove(table_t table, key_t key, const Tuple& tuple) {
+    return mCache->remove(table, key, tuple);
 }
 
 void Transaction::commit() {

@@ -58,17 +58,20 @@ private: // members
     ChunkUnorderedMap<key_t, std::pair<Tuple*, bool>> mCache;
     ChangesMap mChanges;
     ChunkUnorderedMap<crossbow::string, id_t> mSchema;
+    std::unordered_map<crossbow::string, impl::IndexWrapper> mIndexes;
 public: // Construction and Destruction
     TableCache(const tell::store::Table& table,
             impl::TellDBContext& context,
             tell::store::ClientTransaction& transaction,
-            crossbow::ChunkMemoryPool& pool);
+            crossbow::ChunkMemoryPool& pool,
+            std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
     ~TableCache();
 public: // operations
     Future<Tuple> get(key_t key);
+    Iterator lower_bound(const crossbow::string& idxName, const KeyType& key);
     void insert(key_t key, const Tuple& tuple);
-    void update(key_t key, const Tuple& tuple);
-    void remove(key_t key);
+    void update(key_t key, const Tuple& from, const Tuple& to);
+    void remove(key_t key, const Tuple& tuple);
     void writeIndexes();
 public: // state access
     const ChangesMap& changes() const {

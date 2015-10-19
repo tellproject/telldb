@@ -22,6 +22,7 @@
  */
 #include "Indexes.hpp"
 #include <telldb/Exceptions.hpp>
+#include <exception>
 
 using namespace tell::db;
 using namespace tell::db::impl;
@@ -100,6 +101,8 @@ struct size_policy<Archiver, Field>
         case tell::store::FieldType::BLOB:
             return res + 4 + boost::any_cast<const crossbow::string&>(field.value()).size();
         }
+        assert(false);
+        throw std::runtime_error("Unreachable code!");
     }
 };
 
@@ -352,15 +355,16 @@ void IndexWrapper::remove(key_t key, const Tuple& tuple) {
     mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Delete, key));
 }
 
-auto IndexWrapper::lower_bound(const KeyType& key) -> Iterator {
+auto IndexWrapper::lower_bound(const KeyType& key) -> tell::db::Iterator {
     std::unique_ptr<CacheIteratorImpl> cIter(new BdTree::StdIter<Cache::iterator>(
-                Iterator::IteratorDirection::Forward,
+                IteratorDirection::Forward,
                 mCache.lower_bound(key),
                 mCache.end()));
-    return Iterator(Iterator::IteratorDirection::Forward, mBdTree->lower_bound(key), std::move(cIter));
+    return std::unique_ptr<IteratorImpl>(new Iterator(IteratorDirection::Forward,
+                mBdTree->lower_bound(key), std::move(cIter)));
 }
 
-auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> Iterator {
+auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> tell::db::Iterator {
     auto iter = mCache.lower_bound(key);
     auto rIter = std::reverse_iterator<Cache::iterator>(iter);
     if (iter == mCache.end()) {
@@ -368,10 +372,11 @@ auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> Iterator {
     }
     std::unique_ptr<CacheIteratorImpl> cIter(
             new BdTree::StdIter<decltype(rIter)>(
-                Iterator::IteratorDirection::Backward,
+                IteratorDirection::Backward,
                 rIter,
                 mCache.rend()));
-    return Iterator(Iterator::IteratorDirection::Backward, mBdTree->reverse_lower_bound(key), std::move(cIter));
+    return std::unique_ptr<IteratorImpl>(new Iterator(IteratorDirection::Backward,
+                mBdTree->reverse_lower_bound(key), std::move(cIter)));
 }
 
 void IndexWrapper::writeBack() {

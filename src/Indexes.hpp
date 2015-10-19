@@ -171,6 +171,9 @@ public:
         std::unique_ptr<CacheIteratorImpl> mImpl;
     public:
         CacheIterator(std::unique_ptr<CacheIteratorImpl> impl) : mImpl(std::move(impl)) {}
+        CacheIterator(const CacheIterator& other)
+            : mImpl(dynamic_cast<CacheIteratorImpl*>(other.mImpl->copy()))
+        {}
         bool done() const {
             return mImpl->done();
         }
@@ -390,11 +393,10 @@ public:
 
 class IndexWrapper {
 public: // Types
-    class Iterator {
+    class Iterator : public IteratorImpl {
     public: // types
         using TreeIter = tell::db::Iterator;
         using CacheIter = BdTree::CacheIterator;
-        using IteratorDirection = IteratorDirection;
     private: // members
         IteratorDirection mDirection;
         TreeIter treeIter;
@@ -440,10 +442,11 @@ public: // Types
             doSet();
         }
     public:
-        bool done() const {
+        void init() override {}
+        bool done() const override {
             return treeIter.done() && cacheIter.done();
         }
-        void next() {
+        void next() override {
             if (readFromCache) {
                 cacheIter.next();
             } else {
@@ -451,22 +454,25 @@ public: // Types
             }
             doSet();
         }
-        const KeyType& key() const {
+        const KeyType& key() const override {
             if (readFromCache) {
                 return cacheIter.key();
             } else {
                 return treeIter.key();
             }
         }
-        ValueType value() const {
+        ValueType value() const override {
             if (readFromCache) {
                 return cacheIter.value();
             } else {
                 return treeIter.value();
             }
         }
-        IteratorDirection direction() const {
+        IteratorDirection direction() const override {
             return mDirection;
+        }
+        IteratorImpl* copy() const override {
+            return new Iterator(*this);
         }
     };
 private:
@@ -487,8 +493,8 @@ public: // Modifications
     void update(key_t key, const Tuple& old, const Tuple& next);
     void remove(key_t key, const Tuple& tuple);
 public: // find
-    Iterator lower_bound(const KeyType& key);
-    Iterator reverse_lower_bound(const KeyType& key);
+    tell::db::Iterator lower_bound(const KeyType& key);
+    tell::db::Iterator reverse_lower_bound(const KeyType& key);
 public: // commit helper functions
     crossbow::string undoLog() const;
     void writeBack();
@@ -507,7 +513,6 @@ public: // types
 private: // members
     std::shared_ptr<store::Table> mCounterTable;
     std::unordered_map<table_t, std::unordered_map<crossbow::string, IndexTables*>> mIndexes;
-    // TODO: Caching is turned off for now - later we need to redesign cache handling
 public:
     Indexes(store::ClientHandle& handle);
 public:

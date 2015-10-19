@@ -32,13 +32,15 @@ namespace db {
 TableCache::TableCache(const tell::store::Table& table,
         impl::TellDBContext& context,
         tell::store::ClientTransaction& transaction,
-        crossbow::ChunkMemoryPool& pool)
+        crossbow::ChunkMemoryPool& pool,
+        std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes)
     : mTable(table)
     , mTransaction(transaction)
     , mPool(pool)
     , mCache(&pool)
     , mChanges(&pool)
     , mSchema(&pool)
+    , mIndexes(std::move(indexes))
 {
     id_t currId = 0;
     const auto& schema = table.record().schema();
@@ -86,21 +88,29 @@ Future<Tuple> TableCache::get(key_t key) {
     return Future<Tuple>(key, this, mTransaction.get(mTable, key.value));
 }
 
+Iterator TableCache::lower_bound(const crossbow::string& name, const KeyType& key) {
+    return mIndexes.at(name).lower_bound(key);
+}
+
 void TableCache::insert(key_t key, const Tuple& tuple) {
     auto c = mChanges.find(key);
     if (c == mChanges.end()) {
         if (mCache.count(key) != 0) {
             throw TupleExistsException(key);
         }
+        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(tuple), Operation::Insert));
     } else if (c->second.second == Operation::Delete) {
         c->second.second = Operation::Update;
         c->second.first = new (&mPool) Tuple(tuple);
     } else {
         throw TupleExistsException(key);
     }
+    for (auto& idx : mIndexes) {
+        idx.second.insert(key, tuple);
+    }
 }
 
-void TableCache::update(key_t key, const Tuple& tuple) {
+void TableCache::update(key_t key, const Tuple& from, const Tuple& to) {
     {
         auto i = mChanges.find(key);
         if (i != mChanges.end()) {
@@ -108,8 +118,8 @@ void TableCache::update(key_t key, const Tuple& tuple) {
                 throw TupleDoesNotExist(key);
             }
             delete i->second.first;
-            i->second.first = new (&mPool) Tuple(tuple);
-            return;
+            i->second.first = new (&mPool) Tuple(to);
+            goto END;
         }
     }
     {
@@ -121,11 +131,15 @@ void TableCache::update(key_t key, const Tuple& tuple) {
         } 
         // We do an optimistic update - if the tuple is not cached, we assume that there
         // won't be an update
-        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(tuple), Operation::Update));
+        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(to), Operation::Update));
+    }
+END:
+    for (auto& idx : mIndexes) {
+        idx.second.update(key, from, to);
     }
 }
 
-void TableCache::remove(key_t key) {
+void TableCache::remove(key_t key, const Tuple& tuple) {
     {
         auto i = mChanges.find(key);
         if (i != mChanges.end()) {
@@ -133,12 +147,12 @@ void TableCache::remove(key_t key) {
                 throw TupleDoesNotExist(key);
             } else if (i->second.second == Operation::Insert) {
                 mChanges.erase(i);
-                return;
+                goto END;
             }
             delete i->second.first;
             i->second.first = nullptr;
             i->second.second = Operation::Delete;
-            return;
+            goto END;
         }
     }
     {
@@ -151,6 +165,10 @@ void TableCache::remove(key_t key) {
         // We do an optimistic update - if the tuple is not cached, we assume that there
         // won't be an update
         mChanges.emplace(key, std::make_pair(nullptr, Operation::Delete));
+    }
+END:
+    for (auto& idx : mIndexes) {
+        idx.second.remove(key, tuple);
     }
 }
 

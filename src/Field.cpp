@@ -60,6 +60,8 @@ bool Field::operator< (const Field& rhs) const {
     case FieldType::BLOB:
         throw std::invalid_argument("Can not compare BLOBs");
     }
+    assert(false);
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
 bool Field::operator<=(const Field& rhs) const {
@@ -98,6 +100,7 @@ boost::any castTo(const T& value, FieldType target) {
     case FieldType::TEXT:
         return boost::lexical_cast<crossbow::string>(value);
     }
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
 Field Field::cast(tell::store::FieldType t) {
@@ -120,6 +123,7 @@ Field Field::cast(tell::store::FieldType t) {
     case FieldType::TEXT:
         return Field(t, castTo(boost::any_cast<crossbow::string>(mValue), t));
     }
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
 size_t Field::serialize(store::FieldType type, char* dest) const {
@@ -170,6 +174,7 @@ size_t Field::serialize(store::FieldType type, char* dest) const {
             return sizeof(v);
         }
     }
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
 } // namespace db

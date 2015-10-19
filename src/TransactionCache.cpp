@@ -81,7 +81,8 @@ Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
         auto res = Future<table_t>(nullptr, *this);
         res.result.value = tableId.value;
         if (mTables.count(tableId) == 0) {
-            addTable(*context.tables[res.result]);
+            const auto& t = context.tables[res.result];
+            addTable(*context.tables[res.result], context.indexes->openIndexes(mTransaction.snapshot(), mHandle, *t));
         }
         return res;
     }
@@ -95,7 +96,12 @@ table_t TransactionCache::createTable(const crossbow::string& name, const store:
     context.tableNames.emplace(name, tableId);
     auto cTable = new Table(table);
     context.tables.emplace(tableId, cTable);
-    mTables.emplace(tableId, new (&mPool) TableCache(*cTable, context, mTransaction, mPool));
+    mTables.emplace(tableId,
+            new (&mPool) TableCache(*cTable,
+                context,
+                mTransaction,
+                mPool,
+                context.indexes->createIndexes(mTransaction.snapshot(), mHandle, *cTable)));
     return tableId;
 }
 
@@ -108,12 +114,12 @@ void TransactionCache::insert(table_t table, key_t key, const Tuple& tuple) {
     mTables.at(table)->insert(key, tuple);
 }
 
-void TransactionCache::update(table_t table, key_t key, const Tuple& tuple) {
-    mTables.at(table)->update(key, tuple);
+void TransactionCache::update(table_t table, key_t key, const Tuple& from, const Tuple& to) {
+    mTables.at(table)->update(key, from, to);
 }
 
-void TransactionCache::remove(table_t table, key_t key) {
-    mTables.at(table)->remove(key);
+void TransactionCache::remove(table_t table, key_t key, const Tuple& tuple) {
+    mTables.at(table)->remove(key, tuple);
 }
 
 TransactionCache::~TransactionCache() {
@@ -122,16 +128,18 @@ TransactionCache::~TransactionCache() {
     }
 }
 
-table_t TransactionCache::addTable(const tell::store::Table& table) {
+table_t TransactionCache::addTable(const tell::store::Table& table,
+        std::unordered_map<crossbow::string,
+        impl::IndexWrapper>&& indexes) {
     auto id = table.tableId();
-    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, context, mTransaction, mPool));
+    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, context, mTransaction, mPool, std::move(indexes)));
     table_t res;
     res.value = id;
     return res;
 }
 
 table_t TransactionCache::addTable(const crossbow::string& name, const tell::store::Table& table) {
-    context.indexes->openIndexes(mTransaction.snapshot(), mHandle, table);
+    auto indexes = context.indexes->openIndexes(mTransaction.snapshot(), mHandle, table);
     table_t res{table.tableId()};
     Table* t = nullptr;
     auto iter = context.tables.find(res);
@@ -142,7 +150,7 @@ table_t TransactionCache::addTable(const crossbow::string& name, const tell::sto
     } else {
         t = iter->second;
     }
-    return addTable(*t);
+    return addTable(*t, std::move(indexes));
 }
 
 void TransactionCache::writeBack() {
