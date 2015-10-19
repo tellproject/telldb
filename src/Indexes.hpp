@@ -155,6 +155,7 @@ public:
     virtual ValueType value() const = 0;
     virtual IteratorDirection direction() const = 0;
     virtual void init() = 0;
+    virtual IteratorImpl* copy() const = 0;
 };
 
 class CacheIteratorImpl : public IteratorImpl {
@@ -224,6 +225,9 @@ public:
         }
 
         virtual void init() override {}
+        virtual IteratorImpl* copy() const override {
+            return new StdIter(mDirection, iter, end);
+        }
     };
 
     template<class Map>
@@ -314,6 +318,9 @@ public:
         virtual IteratorDirection direction() const override {
             return IteratorDirection::Forward;
         }
+        virtual IteratorImpl* copy() const override {
+            return new ForwardIterator<Map>(*this);
+        }
     protected:
         virtual void forward() override {
             ++this->mapIter;
@@ -331,6 +338,9 @@ public:
         }
         virtual IteratorDirection direction() const override {
             return IteratorDirection::Backward;
+        }
+        virtual IteratorImpl* copy() const override {
+            return new BackwardIterator<Map>(*this);
         }
     protected:
         virtual void forward() override {

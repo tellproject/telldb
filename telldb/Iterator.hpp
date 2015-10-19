@@ -46,7 +46,10 @@ class Iterator {
 public:
     Iterator(std::unique_ptr<impl::IteratorImpl> impl);
     Iterator(Iterator&&) = default;
+    Iterator(const Iterator& other);
     ~Iterator();
+    Iterator& operator=(Iterator&&) = default;
+    Iterator& operator=(const Iterator& other);
     /**
      * @brief Checks whether the iterator is past its last element
      */

@@ -209,7 +209,19 @@ namespace db {
 Iterator::Iterator(std::unique_ptr<IteratorImpl> impl)
     : mImpl(std::move(impl))
 {}
+
+Iterator::Iterator(const Iterator& other)
+    : mImpl(other.mImpl->copy())
+{
+}
+
+Iterator& Iterator::operator=(const Iterator& other) {
+    mImpl.reset(other.mImpl->copy());
+    return *this;
+}
+
 Iterator::~Iterator() {}
+
 bool Iterator::done() const {
     return mImpl->done();
 }
