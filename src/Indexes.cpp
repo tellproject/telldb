@@ -320,12 +320,14 @@ auto NonUniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
 using namespace commitmanager;
 
 IndexWrapper::IndexWrapper(
+        const crossbow::string& name,
         bool uniqueIndex,
         const std::vector<store::Schema::id_t>& fields,
         BdTreeBackend&& backend,
         const SnapshotDescriptor& snapshot,
         bool init)
-    : mFields(fields)
+    : mName(name)
+    , mFields(fields)
     , mBackend(std::move(backend))
     , mSnapshot(snapshot)
     , mBdTree(uniqueIndex ?
@@ -381,11 +383,17 @@ auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> tell::db::Iterator
 
 void IndexWrapper::writeBack() {
     for (const auto& op : mCache) {
+        bool res;
         switch (op.second.first) {
         case IndexOperation::Insert:
+            res = mBdTree->insert(op.first, op.second.second);
             break;
         case IndexOperation::Delete:
+            res = mBdTree->erase(op.first, op.second.second);
             break;
+        }
+        if (!res) {
+            throw IndexConflict(op.second.second, mName);
         }
     }
 }
@@ -416,6 +424,7 @@ Indexes::openIndexes(const SnapshotDescriptor& snapshot, store::ClientHandle& ha
         for (auto& idx : iter->second) {
             res.emplace(idx.first,
                     IndexWrapper(
+                        idx.first,
                         idx.second->fields.first, // TODO: Unique
                         idx.second->fields.second,
                         BdTreeBackend(
@@ -464,6 +473,7 @@ Indexes::openIndexes(const SnapshotDescriptor& snapshot, store::ClientHandle& ha
                 });
         res.emplace(std::get<0>(*it),
                 IndexWrapper(
+                    std::get<0>(*it),
                     std::get<1>(*it)->first, // TODO: Unique
                     std::get<1>(*it)->second,
                     BdTreeBackend(
@@ -491,6 +501,7 @@ Indexes::createIndexes(const SnapshotDescriptor& snapshot, store::ClientHandle& 
                                 TableData(BdTreeNodeTable::createTable(handle, nodeTableName), mCounterTable)});
         res.emplace(idx.first,
                 IndexWrapper(
+                    idx.first,
                     idx.second.first, // TODO: Unique
                     idx.second.second,
                     BdTreeBackend(

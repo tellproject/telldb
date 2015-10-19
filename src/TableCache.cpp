@@ -92,6 +92,10 @@ Iterator TableCache::lower_bound(const crossbow::string& name, const KeyType& ke
     return mIndexes.at(name).lower_bound(key);
 }
 
+Iterator TableCache::reverse_lower_bound(const crossbow::string& name, const KeyType& key) {
+    return mIndexes.at(name).lower_bound(key);
+}
+
 void TableCache::insert(key_t key, const Tuple& tuple) {
     auto c = mChanges.find(key);
     if (c == mChanges.end()) {
@@ -173,7 +177,9 @@ END:
 }
 
 void TableCache::writeIndexes() {
-    // TODO: Implement
+    for (auto& idx : mIndexes) {
+        idx.second.writeBack();
+    }
 }
 
 const Tuple& TableCache::addTuple(key_t key, const tell::store::Tuple& tuple) {

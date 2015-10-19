@@ -476,6 +476,7 @@ public: // Types
         }
     };
 private:
+    crossbow::string mName;
     std::vector<store::Schema::id_t> mFields;
     BdTreeBackend mBackend;
     const commitmanager::SnapshotDescriptor& mSnapshot;
@@ -483,6 +484,7 @@ private:
     Cache mCache;
 public:
     IndexWrapper(
+            const crossbow::string& name,
             bool uniqueIndex,
             const std::vector<store::Schema::id_t>& fieds,
             BdTreeBackend&& backend,

@@ -69,6 +69,7 @@ public: // Construction and Destruction
 public: // operations
     Future<Tuple> get(key_t key);
     Iterator lower_bound(const crossbow::string& idxName, const KeyType& key);
+    Iterator reverse_lower_bound(const crossbow::string& idxName, const KeyType& key);
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& from, const Tuple& to);
     void remove(key_t key, const Tuple& tuple);

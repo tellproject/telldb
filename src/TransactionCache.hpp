@@ -56,6 +56,8 @@ public: // Schema operations
     table_t createTable(const crossbow::string& name, const store::Schema& schema);
 public: // Get/Put
     Future<Tuple> get(table_t table, key_t key);
+    Iterator lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
+    Iterator reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
     void insert(table_t table, key_t key, const Tuple& tuple);
     void update(table_t table, key_t key, const Tuple& from, const Tuple& to);
     void remove(table_t table, key_t key, const Tuple& tuple);

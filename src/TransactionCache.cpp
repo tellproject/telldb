@@ -63,6 +63,14 @@ table_t Future<table_t>::get() {
     return result;
 }
 
+Iterator TransactionCache::lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key) {
+    return mTables[tableId]->lower_bound(idxName, key);
+}
+
+Iterator TransactionCache::reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key) {
+    return mTables[tableId]->reverse_lower_bound(idxName, key);
+}
+
 TransactionCache::TransactionCache(TellDBContext& context,
         store::ClientHandle& handle,
         store::ClientTransaction& transaction,

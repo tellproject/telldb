@@ -61,6 +61,14 @@ Future<Tuple> Transaction::get(table_t table, key_t key) {
     return mCache->get(table, key);
 }
 
+Iterator Transaction::lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key) {
+    return mCache->lower_bound(tableId, idxName, key);
+}
+
+Iterator Transaction::reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key) {
+    return mCache->reverse_lower_bound(tableId, idxName, key);
+}
+
 void Transaction::insert(table_t table, key_t key, const Tuple& tuple) {
     return mCache->insert(table, key, tuple);
 }

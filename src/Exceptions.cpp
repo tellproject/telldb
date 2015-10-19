@@ -58,6 +58,10 @@ Conflict::Conflict(key_t key)
     : KeyException(key, "Conflict on " + boost::lexical_cast<crossbow::string>(key))
 {}
 
+IndexConflict::IndexConflict(key_t key, const crossbow::string& idxName)
+    : KeyException(key, "Index error on " + idxName)
+{}
+
 } // namespace db
 } // namespace tell
 

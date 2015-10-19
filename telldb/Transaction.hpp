@@ -211,6 +211,8 @@ public: // read-write operations
      * @return A future holding the result
      */
     Future<Tuple> get(table_t tableId, key_t key);
+    Iterator lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
+    Iterator reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
     /**
      * @brief Inserts a new tuple
      *
