@@ -1,2 +1,2 @@
 # Index
-[ ] Implement transaction-log integration for index operations
+- [ ] Implement transaction-log integration for index operations
