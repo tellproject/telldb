@@ -1,0 +1,10 @@
+set(_comp_file "${CMAKE_CURRENT_LIST_DIR}/TellDBTargets.cmake")
+if(TARGET telldb)
+    set(TellDB_FOUND True)
+elseif(EXISTS ${_comp_file})
+    include(${_comp_file})
+    set(TellDB_FOUND True)
+else()
+    set(TellDB_FOUND False)
+endif()
+

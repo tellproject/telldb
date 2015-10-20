@@ -50,8 +50,9 @@ set(TELLDB_COMMON_HDR
     telldb/Iterator.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
-target_include_directories(telldb PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
+target_include_directories(telldb PUBLIC $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${INCLUDE_INSTALL_DIR}>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 target_link_libraries(telldb PRIVATE crossbow_allocator)
 target_link_libraries(telldb PUBLIC tellstore-client)
 target_link_libraries(telldb PRIVATE bdtree)
@@ -72,3 +73,17 @@ else()
 endif()
 
 add_subdirectory(benchmark)
+
+# Install the library
+install(TARGETS telldb EXPORT TellDBTargets
+        ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/telldb)
+
+# Install the cmake target
+install(EXPORT TellDBTargets DESTINATION ${CMAKE_INSTALL_DIR})
+
+# Create cmake config file
+configure_file(TellDBConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/TellDBConfig.cmake @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/TellDBConfig.cmake DESTINATION ${CMAKE_INSTALL_DIR})
+
