@@ -25,6 +25,7 @@
 #include <telldb/Exceptions.hpp>
 
 #include <boost/lexical_cast.hpp>
+#include <memory>
 
 namespace tell {
 namespace db {
@@ -63,8 +64,8 @@ TableCache::~TableCache() {
         delete p.second.first;
     }
     for (auto& p : mChanges) {
-        if (p.second.second != Operation::Delete) {
-            delete p.second.first;
+        if (std::get<1>(p.second) != Operation::Delete) {
+            delete std::get<0>(p.second);
         }
     }
 }
@@ -73,10 +74,10 @@ Future<Tuple> TableCache::get(key_t key) {
     {
         auto iter = mChanges.find(key);
         if (iter != mChanges.end()) {
-            if (iter->second.second == Operation::Delete) {
+            if (std::get<1>(iter->second) == Operation::Delete) {
                 throw TupleExistsException(key);
             }
-            return Future<Tuple>(key, iter->second.first);
+            return Future<Tuple>(key, std::get<0>(iter->second));
         }
     }
     {
@@ -102,10 +103,10 @@ void TableCache::insert(key_t key, const Tuple& tuple) {
         if (mCache.count(key) != 0) {
             throw TupleExistsException(key);
         }
-        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(tuple), Operation::Insert));
-    } else if (c->second.second == Operation::Delete) {
-        c->second.second = Operation::Update;
-        c->second.first = new (&mPool) Tuple(tuple);
+        mChanges.emplace(key, std::make_tuple(new (&mPool) Tuple(tuple), Operation::Insert, false));
+    } else if (std::get<1>(c->second) == Operation::Delete) {
+        std::get<1>(c->second) = Operation::Update;
+        std::get<0>(c->second) = new (&mPool) Tuple(tuple);
     } else {
         throw TupleExistsException(key);
     }
@@ -118,11 +119,11 @@ void TableCache::update(key_t key, const Tuple& from, const Tuple& to) {
     {
         auto i = mChanges.find(key);
         if (i != mChanges.end()) {
-            if (i->second.second == Operation::Delete) {
+            if (std::get<1>(i->second) == Operation::Delete) {
                 throw TupleDoesNotExist(key);
             }
-            delete i->second.first;
-            i->second.first = new (&mPool) Tuple(to);
+            delete std::get<0>(i->second);
+            std::get<0>(i->second) = new (&mPool) Tuple(to);
             goto END;
         }
     }
@@ -135,7 +136,7 @@ void TableCache::update(key_t key, const Tuple& from, const Tuple& to) {
         } 
         // We do an optimistic update - if the tuple is not cached, we assume that there
         // won't be an update
-        mChanges.emplace(key, std::make_pair(new (&mPool) Tuple(to), Operation::Update));
+        mChanges.emplace(key, std::make_tuple(new (&mPool) Tuple(to), Operation::Update, false));
     }
 END:
     for (auto& idx : mIndexes) {
@@ -147,15 +148,15 @@ void TableCache::remove(key_t key, const Tuple& tuple) {
     {
         auto i = mChanges.find(key);
         if (i != mChanges.end()) {
-            if (i->second.second == Operation::Delete) {
+            if (std::get<1>(i->second) == Operation::Delete) {
                 throw TupleDoesNotExist(key);
-            } else if (i->second.second == Operation::Insert) {
+            } else if (std::get<1>(i->second)== Operation::Insert) {
                 mChanges.erase(i);
                 goto END;
             }
-            delete i->second.first;
-            i->second.first = nullptr;
-            i->second.second = Operation::Delete;
+            delete std::get<0>(i->second);
+            std::get<0>(i->second) = nullptr;
+            std::get<1>(i->second) = Operation::Delete;
             goto END;
         }
     }
@@ -168,7 +169,7 @@ void TableCache::remove(key_t key, const Tuple& tuple) {
         } 
         // We do an optimistic update - if the tuple is not cached, we assume that there
         // won't be an update
-        mChanges.emplace(key, std::make_pair(nullptr, Operation::Delete));
+        mChanges.emplace(key, std::make_tuple(nullptr, Operation::Delete, false));
     }
 END:
     for (auto& idx : mIndexes) {
@@ -176,9 +177,73 @@ END:
     }
 }
 
+void TableCache::writeBack() {
+    using Resp = std::shared_ptr<store::ModificationResponse>;
+    using ChangeResp = std::pair<Resp, ChangesMap::iterator>;
+    std::vector<ChangeResp, crossbow::ChunkAllocator<ChangeResp>> responses(&mPool);
+    responses.reserve(mCache.size());
+    for (auto iter = mChanges.begin(); iter != mChanges.end(); ++iter) {
+        auto& change = *iter;
+        bool& didChange = std::get<2>(change.second);
+        if (didChange) continue;
+        auto tuple = std::get<0>(change.second);
+        switch (std::get<1>(change.second)) {
+        case Operation::Insert:
+            responses.emplace_back(std::make_pair(mTransaction.insert(mTable, change.first, *tuple), iter));
+            break;
+        case Operation::Update:
+            responses.emplace_back(std::make_pair(mTransaction.update(mTable, change.first, *tuple), iter));
+            break;
+        case Operation::Delete:
+            responses.emplace_back(std::make_pair(mTransaction.remove(mTable, change.first), iter));
+        }
+    }
+    bool hadError = false;
+    // we put this into the stack, because in normal case the vector should stay
+    // empty (and we optimise for the normal case). The unique pointer makes sure
+    // that the object gets deleted after moving it into the exception object
+    std::unique_ptr<std::vector<key_t>> conflicts = nullptr;
+    for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
+        if (i->first->error()) {
+            hadError = true;
+            if (conflicts.get() == nullptr) {
+                conflicts.reset(new std::vector<key_t>());
+            }
+            conflicts->push_back(i->second->first);
+        } else {
+            std::get<2>(i->second->second) = true;
+        }
+    }
+    if (hadError) {
+        throw Conflicts(std::move(*conflicts));
+    }
+}
+
+void TableCache::rollback() {
+    using Resp = std::shared_ptr<store::ModificationResponse>;
+    std::vector<Resp, crossbow::ChunkAllocator<Resp>> responses(&mPool);
+    responses.reserve(mCache.size());
+    for (auto& change : mChanges) {
+        if (!std::get<2>(change.second)) continue;
+        responses.emplace_back(mTransaction.revert(mTable, change.first));
+    }
+    for (auto iter = responses.rbegin(); iter != responses.rend(); ++iter) {
+        if ((*iter)->error()) {
+            // TODO: not clear what to do in this case
+            assert(false);
+        }
+    }
+}
+
 void TableCache::writeIndexes() {
     for (auto& idx : mIndexes) {
         idx.second.writeBack();
+    }
+}
+
+void TableCache::undoIndexes() {
+    for (auto& idx : mIndexes) {
+        idx.second.undo();
     }
 }
 

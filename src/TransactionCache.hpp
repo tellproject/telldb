@@ -62,9 +62,10 @@ public: // Get/Put
     void update(table_t table, key_t key, const Tuple& from, const Tuple& to);
     void remove(table_t table, key_t key, const Tuple& tuple);
 public:
-    crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>> undoLog() const;
+    std::pair<size_t, uint8_t*> undoLog(bool withIndexes = true) const;
     void writeBack();
     void writeIndexes();
+    void rollback();
 private:
     table_t addTable(const tell::store::Table& table, std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);

@@ -21,6 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "Indexes.hpp"
+#include "FieldSerialize.hpp"
 #include <telldb/Exceptions.hpp>
 #include <exception>
 
@@ -48,156 +49,6 @@ struct null_key<tell::db::impl::NonUniqueKeyType> {
 
 } // namespace bdtree
 
-template<class Archiver>
-struct size_policy<Archiver, crossbow::string> {
-    size_t operator() (Archiver& ar, const crossbow::string& str) const {
-        return 4 + str.size();
-    }
-};
-
-template<class Archiver>
-struct serialize_policy<Archiver, crossbow::string> {
-    uint8_t* operator() (Archiver& ar, const crossbow::string& str, uint8_t* pos) const {
-        uint32_t sz = str.size();
-        memcpy(pos, &sz, sizeof(sz));
-        pos += sizeof(sz);
-        memcpy(pos, str.data(), sz);
-        return pos + sz;
-    }
-};
-
-template<class Archiver>
-struct deserialize_policy<Archiver, crossbow::string> {
-    const uint8_t* operator() (Archiver&, crossbow::string& out, const uint8_t* ptr) const
-    {
-        const std::uint32_t s = *reinterpret_cast<const std::uint32_t*>(ptr);
-        out = crossbow::string(reinterpret_cast<const char*>(ptr + sizeof(std::uint32_t)), s);
-        return ptr + sizeof(s) + s;
-    }
-};
-
-template<class Archiver>
-struct size_policy<Archiver, Field>
-{
-    size_t operator() (Archiver& ar, const Field& field) const
-    {
-        size_t res = 1;
-        switch (field.type()) {
-        case tell::store::FieldType::NOTYPE:
-            return res;
-        case tell::store::FieldType::NULLTYPE:
-            return res;
-        case tell::store::FieldType::SMALLINT:
-            return res + 2;
-        case tell::store::FieldType::INT:
-            return res + 4;
-        case tell::store::FieldType::BIGINT:
-            return res + 8;
-        case tell::store::FieldType::FLOAT:
-            return res + 4;
-        case tell::store::FieldType::DOUBLE:
-            return res + 8;
-        case tell::store::FieldType::TEXT:
-        case tell::store::FieldType::BLOB:
-            return res + 4 + boost::any_cast<const crossbow::string&>(field.value()).size();
-        }
-        assert(false);
-        throw std::runtime_error("Unreachable code!");
-    }
-};
-
-template<class Archiver>
-struct serialize_policy<Archiver, Field>
-{
-    uint8_t* operator() (Archiver& ar, const Field& field, uint8_t* pos) const {
-        ar & field.type();
-        switch (field.type()) {
-        case tell::store::FieldType::NOTYPE:
-        case tell::store::FieldType::NULLTYPE:
-            break;
-        case tell::store::FieldType::SMALLINT:
-            ar & boost::any_cast<int16_t>(field.value());
-            break;
-        case tell::store::FieldType::INT:
-            ar & boost::any_cast<int32_t>(field.value());
-            break;
-        case tell::store::FieldType::BIGINT:
-            ar & boost::any_cast<int64_t>(field.value());
-            break;
-        case tell::store::FieldType::FLOAT:
-            ar & boost::any_cast<float>(field.value());
-            break;
-        case tell::store::FieldType::DOUBLE:
-            ar & boost::any_cast<double>(field.value());
-            break;
-        case tell::store::FieldType::TEXT:
-        case tell::store::FieldType::BLOB:
-            ar & boost::any_cast<const crossbow::string&>(field.value());
-            break;
-        }
-        return ar.pos;
-    }
-};
-
-template<class Archiver>
-struct deserialize_policy<Archiver, Field>
-{
-    const uint8_t* operator() (Archiver& ar, Field& field, const uint8_t* ptr) const {
-        tell::store::FieldType type;
-        ar & type;
-        switch (type) {
-        case tell::store::FieldType::NOTYPE:
-            break;
-        case tell::store::FieldType::NULLTYPE:
-            field = Field::createNull();
-            break;
-        case tell::store::FieldType::SMALLINT:
-            {
-                int16_t value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        case tell::store::FieldType::INT:
-            {
-                int32_t value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        case tell::store::FieldType::BIGINT:
-            {
-                int64_t value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        case tell::store::FieldType::FLOAT:
-            {
-                float value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        case tell::store::FieldType::DOUBLE:
-            {
-                double value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        case tell::store::FieldType::TEXT:
-        case tell::store::FieldType::BLOB:
-            {
-                crossbow::string value;
-                ar & value;
-                field = Field::create(value);
-            }
-            break;
-        }
-        return ar.pos;
-    }
-};
 
 namespace bdtree {
 
@@ -275,6 +126,15 @@ bool UniqueBdTree::erase(const KeyType& key, const ValueType& value) {
     return true;
 }
 
+void UniqueBdTree::revertInsert(const KeyType& key, ValueType) {
+    mMap.erase(std::make_tuple(key, std::numeric_limits<uint64_t>::max()));
+}
+
+void UniqueBdTree::revertErase(const KeyType& key, ValueType value) {
+    mMap.insert(std::make_tuple(key, std::numeric_limits<uint64_t>::max()), value);
+    mMap.erase(std::make_tuple(key, mSnapshot.version()));
+}
+
 auto UniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
     return Iterator(std::unique_ptr<IteratorImpl>(ForwardIterator<Map>::create(mSnapshot,
                     mMap.find(std::make_tuple(key, 0)), mMap)));
@@ -302,6 +162,15 @@ bool NonUniqueBdTree::erase(const KeyType& key, const ValueType& value) {
         return false;
     }
     return true;
+}
+
+void NonUniqueBdTree::revertInsert(const KeyType& key, ValueType value) {
+    mMap.erase(std::make_tuple(key, std::numeric_limits<uint64_t>::max(), value));
+}
+
+void NonUniqueBdTree::revertErase(const KeyType& key, ValueType value) {
+    mMap.insert(std::make_tuple(key, std::numeric_limits<uint64_t>::max(), value));
+    mMap.erase(std::make_tuple(key, mSnapshot.version(), value));
 }
 
 auto NonUniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
@@ -337,7 +206,7 @@ IndexWrapper::IndexWrapper(
 }
 
 void IndexWrapper::insert(key_t k, const Tuple& tuple) {
-    mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Insert, k));
+    mCache.emplace(keyOf(tuple), std::make_tuple(IndexOperation::Insert, k, false));
 }
 
 void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
@@ -346,15 +215,15 @@ void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
     if (oldKey != newKey) {
         mCache.emplace(
                 keyOf(old),
-                std::make_pair(IndexOperation::Delete, key));
+                std::make_tuple(IndexOperation::Delete, key, false));
         mCache.emplace(
                 keyOf(next),
-                std::make_pair(IndexOperation::Insert, key));
+                std::make_tuple(IndexOperation::Insert, key, false));
     }
 }
 
 void IndexWrapper::remove(key_t key, const Tuple& tuple) {
-    mCache.emplace(keyOf(tuple), std::make_pair(IndexOperation::Delete, key));
+    mCache.emplace(keyOf(tuple), std::make_tuple(IndexOperation::Delete, key, false));
 }
 
 auto IndexWrapper::lower_bound(const KeyType& key) -> tell::db::Iterator {
@@ -382,18 +251,34 @@ auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> tell::db::Iterator
 }
 
 void IndexWrapper::writeBack() {
-    for (const auto& op : mCache) {
+    for (auto& op : mCache) {
         bool res;
-        switch (op.second.first) {
+        if (std::get<2>(op.second)) continue;
+        switch (std::get<0>(op.second)) {
         case IndexOperation::Insert:
-            res = mBdTree->insert(op.first, op.second.second);
+            res = mBdTree->insert(op.first, std::get<1>(op.second));
             break;
         case IndexOperation::Delete:
-            res = mBdTree->erase(op.first, op.second.second);
+            res = mBdTree->erase(op.first, std::get<1>(op.second));
             break;
         }
         if (!res) {
-            throw IndexConflict(op.second.second, mName);
+            throw IndexConflict(std::get<1>(op.second), mName);
+        }
+        std::get<2>(op.second) = true;
+    }
+}
+
+void IndexWrapper::undo() {
+    for (auto& op : mCache) {
+        if (!std::get<2>(op.second)) continue;
+        switch (std::get<0>(op.second)) {
+        case IndexOperation::Insert:
+            mBdTree->revertInsert(op.first, std::get<1>(op.second));
+            break;
+        case IndexOperation::Delete:
+            mBdTree->revertErase(op.first, std::get<1>(op.second));
+            break;
         }
     }
 }

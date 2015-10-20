@@ -22,6 +22,7 @@
  */
 #include <telldb/Exceptions.hpp>
 #include <boost/lexical_cast.hpp>
+#include <sstream>
 
 namespace tell {
 namespace db {
@@ -61,6 +62,23 @@ Conflict::Conflict(key_t key)
 IndexConflict::IndexConflict(key_t key, const crossbow::string& idxName)
     : KeyException(key, "Index error on " + idxName)
 {}
+
+void Conflicts::init() {
+    std::stringstream ss;
+    ss << "Conflicts on the following keys:";
+    for (auto k : mKeys) {
+        ss << std::endl << k.value;
+    }
+    mMsg = ss.str();
+}
+
+const std::vector<key_t>& Conflicts::keys() const noexcept {
+    return mKeys;
+}
+
+const char* Conflicts::what() const noexcept {
+    return mMsg.c_str();
+}
 
 } // namespace db
 } // namespace tell

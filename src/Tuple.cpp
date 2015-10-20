@@ -55,6 +55,8 @@ boost::any deserialize(tell::store::FieldType type, const char* const data) {
         LOG_ASSERT(false, "One should never use a field of type NOTYPE");
         return false;
     }
+    LOG_ASSERT(false, "Unreachable code");
+    return false;
 }
 
 } // namespace {}
@@ -92,7 +94,7 @@ size_t Tuple::size() const {
     for (const auto& f : schema.fixedSizeFields()) {
         result += f.defaultSize();
     }
-    for (int i = schema.fixedSizeFields().size(); i < mFields.size(); ++i) {
+    for (unsigned i = schema.fixedSizeFields().size(); i < mFields.size(); ++i) {
         switch (mFields[i].type()) {
         case store::FieldType::NULLTYPE:
             break;
@@ -124,7 +126,7 @@ void Tuple::serialize(char* dest) const {
     const auto& fixedSize = schema.fixedSizeFields();
     auto numFixedSize = fixedSize.size();
     const auto& varSizedFields = schema.varSizeFields();
-    for (int i = 0; i < numFields; ++i) {
+    for (unsigned i = 0; i < numFields; ++i) {
         if (mFields[i].null()) {
             dest[i/8] |= 1 << (8 - (i % 8));
         }

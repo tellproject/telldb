@@ -81,6 +81,21 @@ public:
     ~Conflict();
 };
 
+class Conflicts : public Exception {
+    void init();
+    crossbow::string mMsg;
+    std::vector<key_t> mKeys;
+public:
+    template<class V>
+    Conflicts(V&& keys)
+        : mKeys(std::forward<V>(keys))
+    {
+        init();
+    }
+    const std::vector<key_t>& keys() const noexcept;
+    const char* what() const noexcept override;
+};
+
 class IndexConflict : public KeyException {
     crossbow::string idxName;
 public:

@@ -39,7 +39,6 @@ Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBCont
     , mContext(context)
     , mType(type)
     , mCache(new (&mPool) TransactionCache(context, mHandle, tx, mPool))
-    , mLog(&mPool)
 {
 }
 
@@ -84,48 +83,40 @@ void Transaction::remove(table_t table, key_t key, const Tuple& tuple) {
 void Transaction::commit() {
     writeBack();
     // if this succeeds, we can write back the indexes
-    mCache->writeIndexes();
     mTx.commit();
     mCommitted = true;
 }
 
 void Transaction::rollback() {
-    const char* log = mLog.data();
-    auto sz = mLog.size();
-    std::vector<std::shared_ptr<ModificationResponse>> responses;
-    for (unsigned i = 0; i < sz; i += 16) {
-        uint64_t table = *reinterpret_cast<const uint64_t*>(log + i);
-        uint64_t key = *reinterpret_cast<const uint64_t*>(log + i + 8);
-        auto t = mContext.tables.at(table_t {table});
-        responses.push_back(mTx.revert(*t, key));
-    }
-    // TODO: revert index changes
-    for (auto& resp : responses) {
-        resp->wait();
-    }
-    mLog.clear();
+    mCache->rollback();
     mTx.commit();
     mCommitted = true;
 }
 
-void Transaction::writeUndoLog(const ChunkString& log) {
-    bool isNew = mLog.empty();
-    mLog.append(log.begin(), log.end());
+void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
     auto version = mTx.snapshot().version();
-    if (isNew) {
+    if (mDidWriteBack) {
         auto resp = mHandle.insert(mContext.clientTable->txTable(),
-                version, 0, store::GenericTuple{std::make_pair("value", crossbow::string(mLog.c_str(), mLog.size()))});
+                version, 0,
+                store::GenericTuple{std::make_pair("value",
+                        crossbow::string(reinterpret_cast<char*>(log.second), log.first))});
         resp->waitForResult();
+        mDidWriteBack = true;
     } else {
         auto resp = mHandle.update(mContext.clientTable->txTable(),
-                version, 0, store::GenericTuple{std::make_pair("value", crossbow::string(mLog.c_str(), mLog.size()))});
+                version, 0,
+                store::GenericTuple{std::make_pair("value",
+                        crossbow::string(reinterpret_cast<char*>(log.second), log.first))});
     }
 }
 
-void Transaction::writeBack() {
-    auto undoLog = mCache->undoLog();
+void Transaction::writeBack(bool withIndexes) {
+    auto undoLog = mCache->undoLog(withIndexes);
     writeUndoLog(undoLog);
     mCache->writeBack();
+    if (withIndexes) {
+        mCache->writeIndexes();
+    }
 }
 
 } // namespace db

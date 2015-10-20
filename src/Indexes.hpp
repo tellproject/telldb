@@ -56,11 +56,11 @@ using NonUniqueValueType = bdtree::empty_t;
 /**
  * Used for index caching.
  */
-enum class IndexOperation {
+enum class IndexOperation : uint8_t {
     Insert, Delete
 };
 
-using Cache = std::multimap<KeyType, std::pair<IndexOperation, ValueType>>;
+using Cache = std::multimap<KeyType, std::tuple<IndexOperation, ValueType, bool>>;
 
 } // namespace impl
 } // namespace db
@@ -218,10 +218,10 @@ public:
             return iter->first;
         }
         virtual ValueType value() const override {
-            return iter->second.second;
+            return std::get<1>(iter->second);
         }
         virtual IndexOperation operation() const override {
-            return iter->second.first;
+            return std::get<0>(iter->second);
         }
         virtual IteratorDirection direction() const override {
             return mDirection;
@@ -356,7 +356,9 @@ public:
     BdTree(const commitmanager::SnapshotDescriptor& snapshot) : mSnapshot(snapshot) {}
     virtual ~BdTree();
     virtual bool insert(const KeyType& key, const ValueType& value) = 0;
+    virtual void revertInsert(const KeyType& key, ValueType value) = 0;
     virtual bool erase(const KeyType& key, const ValueType& value) = 0;
+    virtual void revertErase(const KeyType& key, ValueType value) = 0;
     virtual Iterator lower_bound(const KeyType& key) = 0;
     virtual Iterator reverse_lower_bound(const KeyType& key) = 0;
 };
@@ -372,6 +374,8 @@ public:
     UniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit = false);
     bool insert(const KeyType& key, const ValueType& value) override;
     bool erase(const KeyType& key, const ValueType& value) override;
+    virtual void revertInsert(const KeyType& key, ValueType value) override;
+    virtual void revertErase(const KeyType& key, ValueType value) override;
     virtual Iterator lower_bound(const KeyType& key) override;
     virtual Iterator reverse_lower_bound(const KeyType& key) override;
 };
@@ -386,6 +390,8 @@ public:
     NonUniqueBdTree(const commitmanager::SnapshotDescriptor& snapshot, BdTreeBackend& backend, bool doInit = false);
     bool insert(const KeyType& key, const ValueType& value) override;
     bool erase(const KeyType& key, const ValueType& value) override;
+    virtual void revertInsert(const KeyType& key, ValueType value) override;
+    virtual void revertErase(const KeyType& key, ValueType value) override;
     virtual Iterator lower_bound(const KeyType& key) override;
     virtual Iterator reverse_lower_bound(const KeyType& key) override;
 };
@@ -498,8 +504,15 @@ public: // find
     tell::db::Iterator lower_bound(const KeyType& key);
     tell::db::Iterator reverse_lower_bound(const KeyType& key);
 public: // commit helper functions
-    crossbow::string undoLog() const;
     void writeBack();
+    void undo();
+    const Cache& cache() const {
+        return mCache;
+    }
+    template<class C>
+    void setCache(C&& c) {
+        mCache = std::forward<C>(c);
+    }
 private:
     std::vector<Field> keyOf(const Tuple& tuple);
 };

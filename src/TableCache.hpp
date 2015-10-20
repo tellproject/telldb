@@ -47,7 +47,8 @@ public: // public types
     enum class Operation {
         Insert, Update, Delete
     };
-    using ChangesMap = ChunkUnorderedMap<key_t, std::pair<Tuple*, Operation>>;
+    // last bool is true if the change got written to storage
+    using ChangesMap = ChunkUnorderedMap<key_t, std::tuple<Tuple*, Operation, bool>>;
 private: // private types
     using id_t = tell::store::Schema::id_t;
     friend class Future<Tuple>;
@@ -73,13 +74,19 @@ public: // operations
     void insert(key_t key, const Tuple& tuple);
     void update(key_t key, const Tuple& from, const Tuple& to);
     void remove(key_t key, const Tuple& tuple);
+    void writeBack();
+    void rollback();
     void writeIndexes();
+    void undoIndexes();
 public: // state access
     const ChangesMap& changes() const {
         return mChanges;
     }
     const store::Table& table() const {
         return mTable;
+    }
+    const std::unordered_map<crossbow::string, impl::IndexWrapper>& indexes() const {
+        return mIndexes;
     }
 private:
     const Tuple& addTuple(key_t key, const tell::store::Tuple& tuple);

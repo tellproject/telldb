@@ -164,8 +164,8 @@ private:
     // will be set to true if there is any data
     // written to the storage
     bool mDidWriteToStorage;
-    ChunkString mLog;
     bool mCommitted = false;
+    bool mDidWriteBack = false;
 public:
     Transaction(tell::store::ClientHandle& handle,
             tell::store::ClientTransaction& tx,
@@ -290,8 +290,8 @@ public: // finish
      */
     void commit();
 private:
-    void writeBack();
-    void writeUndoLog(const ChunkString& log);
+    void writeBack(bool withIndexes = true);
+    void writeUndoLog(std::pair<size_t, uint8_t*> log);
 public: // non-commands
     /**
      * @brief Gets the memory pool of this transaction
