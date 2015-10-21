@@ -62,6 +62,7 @@ Conflict::Conflict(key_t key)
 IndexConflict::IndexConflict(key_t key, const crossbow::string& idxName)
     : KeyException(key, "Index error on " + idxName)
 {}
+IndexConflict::~IndexConflict() {}
 
 void Conflicts::init() {
     std::stringstream ss;

@@ -32,7 +32,7 @@ namespace db {
 
 class Exception : public std::exception {
 public:
-    ~Exception();
+    virtual ~Exception();
 };
 
 class KeyException : public Exception {
