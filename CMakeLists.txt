@@ -13,7 +13,7 @@ set(TellDB_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "Path to the TellDB binari
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Set compile options
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -mcx16 -fPIC")
 
 # Find dependencies
 find_package(Boost REQUIRED)
@@ -50,6 +50,10 @@ set(TELLDB_COMMON_HDR
     telldb/Iterator.hpp
 )
 add_library(telldb SHARED ${TELLDB_SRCS} ${TELLDB_COMMON_HDR})
+# Workaround for link failure with GCC 5 (GCC Bug 65913)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    target_link_libraries(telldb PUBLIC atomic)
+endif()
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_include_directories(telldb PUBLIC $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${INCLUDE_INSTALL_DIR}>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)

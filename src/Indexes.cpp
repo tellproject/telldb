@@ -292,6 +292,8 @@ std::vector<Field> IndexWrapper::keyOf(const Tuple& tuple) {
     return key;
 }
 
+Indexes::IndexTables::~IndexTables() = default;
+
 Indexes::Indexes(store::ClientHandle& handle) {
     auto tableRes = handle.getTable("__counter");
     if (tableRes->error()) {

@@ -521,6 +521,7 @@ class Indexes {
 public: // types
     using IndexDescriptor = store::Schema::IndexMap::mapped_type;
     struct IndexTables {
+        ~IndexTables();
         IndexDescriptor fields;
         TableData ptrTable;
         TableData nodeTable;
