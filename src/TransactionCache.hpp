@@ -42,13 +42,13 @@ class TransactionCache : public crossbow::ChunkObject {
     friend class Future<table_t>;
     impl::TellDBContext& context;
     store::ClientHandle& mHandle;
-    store::ClientTransaction& mTransaction;
+    const commitmanager::SnapshotDescriptor& mSnapshot;
     crossbow::ChunkMemoryPool& mPool;
     ChunkUnorderedMap<table_t, TableCache*> mTables;
 public:
     TransactionCache(impl::TellDBContext& context,
             store::ClientHandle& handle,
-            store::ClientTransaction& transaction,
+            const commitmanager::SnapshotDescriptor& snapshot,
             crossbow::ChunkMemoryPool& pool);
     ~TransactionCache();
 public: // Schema operations

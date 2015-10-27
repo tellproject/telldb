@@ -33,11 +33,13 @@ namespace tell {
 namespace db {
 using namespace impl;
 
-Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBContext& context, TransactionType type)
+Transaction::Transaction(ClientHandle& handle, TellDBContext& context,
+        std::unique_ptr<commitmanager::SnapshotDescriptor> snapshot, TransactionType type)
     : mHandle(handle)
-    , mTx(tx)
     , mContext(context)
-    , mCache(new (&mPool) TransactionCache(context, mHandle, tx, mPool))
+    , mSnapshot(std::move(snapshot))
+    , mCache(new (&mPool) TransactionCache(context, mHandle, *mSnapshot, mPool))
+    , mType(type)
 {
 }
 
@@ -86,35 +88,35 @@ void Transaction::remove(table_t table, key_t key, const Tuple& tuple) {
 void Transaction::commit() {
     writeBack();
     // if this succeeds, we can write back the indexes
-    mTx.commit();
+    mHandle.commit(*mSnapshot);
     mCommitted = true;
 }
 
 void Transaction::rollback() {
+    if (mCommitted) {
+        throw std::logic_error("Transaction has already committed");
+    }
     mCache->rollback();
-    mTx.commit();
+    mHandle.commit(*mSnapshot);
     mCommitted = true;
 }
 
 void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
-    auto version = mTx.snapshot().version();
-    if (mDidWriteBack) {
-        auto resp = mHandle.insert(mContext.clientTable->txTable(),
-                version, 0,
-                store::GenericTuple{std::make_pair("value",
-                        crossbow::string(reinterpret_cast<char*>(log.second), log.first))});
-        resp->waitForResult();
-        mDidWriteBack = true;
-    } else {
-        auto resp = mHandle.update(mContext.clientTable->txTable(),
-                version, 0,
-                store::GenericTuple{std::make_pair("value",
-                        crossbow::string(reinterpret_cast<char*>(log.second), log.first))});
-    }
+    auto resp = mHandle.insert(mContext.clientTable->txTable(), mSnapshot->version(), 0, {
+            std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
+    });
+    __attribute__((unused)) auto res = resp->waitForResult();
+    LOG_ASSERT(res, "Writeback did not succeed");
 }
 
 void Transaction::writeBack(bool withIndexes) {
+    if (mCommitted) {
+        throw std::logic_error("Transaction has already committed");
+    }
     auto undoLog = mCache->undoLog(withIndexes);
+    if (undoLog.first != 0 && mType != store::TransactionType::READ_WRITE) {
+        throw std::logic_error("Transaction is read only");
+    }
     writeUndoLog(undoLog);
     mCache->writeBack();
     if (withIndexes) {

@@ -54,7 +54,8 @@ private: // private types
     friend class Future<Tuple>;
 private: // members
     const tell::store::Table& mTable;
-    tell::store::ClientTransaction& mTransaction;
+    tell::store::ClientHandle& mHandle;
+    const commitmanager::SnapshotDescriptor& mSnapshot;
     crossbow::ChunkMemoryPool& mPool;
     ChunkUnorderedMap<key_t, std::pair<Tuple*, bool>> mCache;
     ChangesMap mChanges;
@@ -62,8 +63,8 @@ private: // members
     std::unordered_map<crossbow::string, impl::IndexWrapper> mIndexes;
 public: // Construction and Destruction
     TableCache(const tell::store::Table& table,
-            impl::TellDBContext& context,
-            tell::store::ClientTransaction& transaction,
+            tell::store::ClientHandle& handle,
+            const commitmanager::SnapshotDescriptor& snapshot,
             crossbow::ChunkMemoryPool& pool,
             std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
     ~TableCache();

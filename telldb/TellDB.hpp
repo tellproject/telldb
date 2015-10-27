@@ -131,8 +131,8 @@ private: // private access
                 context.mContext.setIndexes(impl::createIndexes(handle));
             }
             try {
-                auto clientTransaction = handle.startTransaction(mTxType);
-                Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
+                auto snapshot = handle.startTransaction(mTxType);
+                Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
                 context.executeHandler(fun, transaction);
             } catch (std::exception& e) {
                 std::cerr << "Exception: " << e.what() << std::endl;
