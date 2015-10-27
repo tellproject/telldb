@@ -44,6 +44,7 @@ private: // members
     crossbow::ChunkMemoryPool& mPool;
     std::vector<Field, crossbow::ChunkAllocator<Field>> mFields;
 public: // Construction
+    Tuple(const tell::store::Record& record, crossbow::ChunkMemoryPool& pool);
     Tuple(const tell::store::Record& record,
           const tell::store::Tuple& tuple,
           crossbow::ChunkMemoryPool& pool);

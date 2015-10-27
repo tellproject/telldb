@@ -43,6 +43,10 @@ TellDBContext::~TellDBContext() {
     }
 }
 
+void TellDBContext::setIndexes(Indexes* idxs) {
+    indexes.reset(idxs);
+}
+
 
 void ClientTable::init(store::ClientHandle& handle) {
     std::random_device rd;

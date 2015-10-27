@@ -68,6 +68,7 @@ Indexes* createIndexes(store::ClientHandle& handle);
 struct TellDBContext {
     TellDBContext(ClientTable* table);
     ~TellDBContext();
+    void setIndexes(Indexes* idxs);
     std::unordered_map<table_t, tell::store::Table*> tables;
     std::unordered_map<crossbow::string, table_t> tableNames;
     std::unique_ptr<Indexes> indexes;
@@ -80,12 +81,12 @@ struct FiberContext {
     TellDBContext mContext;
 
     template<class Fun, class C = Context>
-    typename std::enable_if<std::is_void<C>::value, void>::type executeHandler(Fun& fun, Transaction& transaction) {
+    typename std::enable_if<!std::is_void<C>::value, void>::type executeHandler(Fun& fun, Transaction& transaction) {
         fun(transaction, mUserContext);
     }
 
     template<class Fun, class C = Context>
-    typename std::enable_if<!std::is_void<C>::value, void>::type executeHandler(Fun& fun, Transaction& transaction) {
+    typename std::enable_if<std::is_void<C>::value, void>::type executeHandler(Fun& fun, Transaction& transaction) {
         fun(transaction);
     }
 
@@ -127,10 +128,10 @@ private: // private access
     void exec(Fun fun) {
         mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
             if (context.mContext.indexes == nullptr) {
-                context.mContext.indexes.reset(impl::createIndexes(handle));
+                context.mContext.setIndexes(impl::createIndexes(handle));
             }
             try {
-                auto& clientTransaction = handle.startTransaction(mTxType);
+                auto clientTransaction = handle.startTransaction(mTxType);
                 Transaction transaction(handle, clientTransaction, context.mContext, mTxType);
                 context.executeHandler(fun, transaction);
             } catch (std::exception& e) {
@@ -255,7 +256,7 @@ public:
             Fun& fun,
             tell::store::TransactionType type = tell::store::TransactionType::READ_WRITE)
     {
-        TransactionFiber<Context> fiber(*this, type);
+        TransactionFiber<Context> fiber(mClientManager, type);
         fiber.exec(fun);
         return fiber;
     }

@@ -82,6 +82,15 @@ Tuple::Tuple(
     }
 }
 
+Tuple::Tuple(const store::Record& record, crossbow::ChunkMemoryPool& pool)
+    : mRecord(record)
+    , mPool(pool)
+    , mFields(&mPool)
+{
+    int numFields = record.fieldCount();
+    mFields.resize(numFields);
+}
+
 size_t Tuple::size() const {
     const auto& schema = mRecord.schema();
     size_t result = 0;

@@ -201,7 +201,7 @@ std::pair<size_t, uint8_t*> TransactionCache::undoLog(bool withIndexes) const {
             s & c.first;
         }
     }
-    auto res = reinterpret_cast<uint8_t*>(s.size);
+    auto res = reinterpret_cast<uint8_t*>(mPool.allocate(s.size));
     crossbow::serializer ser(res);
     for (const auto& t : mTables) {
         ser & t.first;
@@ -219,7 +219,12 @@ std::pair<size_t, uint8_t*> TransactionCache::undoLog(bool withIndexes) const {
             }
         }
     }
+    ser.buffer.release();
     return std::make_pair(s.size, res);
+}
+
+const store::Record& TransactionCache::record(table_t table) const {
+    return mTables.at(table)->table().record();
 }
 
 template class Future<table_t>;

@@ -57,7 +57,7 @@ endif()
 target_include_directories(telldb PRIVATE ${Crossbow_INCLUDE_DIRS})
 target_include_directories(telldb PUBLIC $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${INCLUDE_INSTALL_DIR}>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
-target_link_libraries(telldb PRIVATE crossbow_allocator)
+target_link_libraries(telldb PUBLIC crossbow_allocator)
 target_link_libraries(telldb PUBLIC tellstore-client)
 target_link_libraries(telldb PRIVATE bdtree)
 

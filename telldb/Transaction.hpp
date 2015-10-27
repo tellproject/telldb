@@ -27,6 +27,7 @@
 
 #include <tellstore/TransactionType.hpp>
 #include <crossbow/ChunkAllocator.hpp>
+#include <tuple>
 
 /**
  * @mainpage TellDB - Running transactions on Tell
@@ -159,11 +160,9 @@ private:
     tell::store::ClientTransaction& mTx;
     impl::TellDBContext& mContext;
     crossbow::ChunkMemoryPool mPool;
-    tell::store::TransactionType mType;
     std::unique_ptr<TransactionCache> mCache;
     // will be set to true if there is any data
     // written to the storage
-    bool mDidWriteToStorage;
     bool mCommitted = false;
     bool mDidWriteBack = false;
 public:
@@ -230,6 +229,8 @@ public: // read-write operations
      * @throws TupleExistsException If the key is already in the local cache.
      */
     void insert(table_t table, key_t key, const Tuple& tuple);
+    template<class... T>
+    void insert(table_t table, key_t key, const std::tuple<T...>& tuple);
     /**
      * @brief Updates a tuple
      *
@@ -292,6 +293,7 @@ public: // finish
 private:
     void writeBack(bool withIndexes = true);
     void writeUndoLog(std::pair<size_t, uint8_t*> log);
+    const store::Record& getRecord(table_t tableId) const;
 public: // non-commands
     /**
      * @brief Gets the memory pool of this transaction
@@ -313,6 +315,28 @@ public: // non-commands
      */
     crossbow::ChunkMemoryPool& pool();
 };
+
+template<id_t id, class... T>
+struct tuple_set {
+    static void set(const std::tuple<T...>& tuple, Tuple& t) {
+        t[id] = Field::create(std::get<id>(tuple));
+        tuple_set<id, T...>::set(tuple, t);
+    }
+};
+
+template<class... T>
+struct tuple_set<0, T...> {
+    static void set(const std::tuple<T...>& tuple, Tuple& t) {
+        t[0] = Field::create(std::get<0>(tuple));
+    }
+};
+
+template<class... T>
+void Transaction::insert(table_t table, key_t key, const std::tuple<T...>& tuple) {
+    Tuple t(this->getRecord(table), pool());
+    tuple_set<std::tuple_size<std::tuple<T...>>::value - 1, T...>::set(tuple, t);
+    this->insert(table, key, t);
+}
 
 } // namespace db
 } // namespace tell

@@ -31,7 +31,6 @@ using namespace tell::store;
 namespace tell {
 namespace db {
 
-
 bool Field::operator< (const Field& rhs) const {
     if (mType != rhs.mType) {
         throw std::invalid_argument("Can only compare fields of same type");

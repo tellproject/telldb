@@ -37,9 +37,12 @@ Transaction::Transaction(ClientHandle& handle, ClientTransaction& tx, TellDBCont
     : mHandle(handle)
     , mTx(tx)
     , mContext(context)
-    , mType(type)
     , mCache(new (&mPool) TransactionCache(context, mHandle, tx, mPool))
 {
+}
+
+crossbow::ChunkMemoryPool& Transaction::pool() {
+    return mPool;
 }
 
 Transaction::~Transaction() {
@@ -117,6 +120,10 @@ void Transaction::writeBack(bool withIndexes) {
     if (withIndexes) {
         mCache->writeIndexes();
     }
+}
+
+const store::Record& Transaction::getRecord(table_t table) const {
+    return mCache->record(table);
 }
 
 } // namespace db

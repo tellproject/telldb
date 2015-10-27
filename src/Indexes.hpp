@@ -32,6 +32,7 @@
 #include <commitmanager/SnapshotDescriptor.hpp>
 
 #include <map>
+#include <limits>
 
 namespace tell {
 namespace db {
@@ -272,9 +273,10 @@ public:
         }
         virtual void init() override {
             while (this->mapIter != this->mapEnd) {
-                if (this->validTo() < this->mSnapshot.lowestActiveVersion()) {
+                auto v = this->validTo();
+                if (v < this->mSnapshot.lowestActiveVersion()) {
                     this->cleaner->add(mKeyOf.mapKey(*this->mapIter));
-                } else {
+                } else if (v == std::numeric_limits<uint64_t>::max() || !this->mSnapshot.inReadSet(v)) {
                     break;
                 }
                 forward();
@@ -293,9 +295,10 @@ public:
         virtual void next() override {
             while (this->mapIter != this->mapEnd) {
                 this->forward();
-                if (this->validTo() < this->mSnapshot.lowestActiveVersion()) {
+                auto v = this->validTo();
+                if (v < this->mSnapshot.lowestActiveVersion()) {
                     this->cleaner->add(mKeyOf.mapKey(*this->mapIter));
-                } else {
+                } else if (v == std::numeric_limits<uint64_t>::max() || !this->mSnapshot.inReadSet(v)) {
                     break;
                 }
             }

@@ -66,6 +66,8 @@ public:
     void writeBack();
     void writeIndexes();
     void rollback();
+public: // Helpers
+    const store::Record& record(table_t table) const;
 private:
     table_t addTable(const tell::store::Table& table, std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
     table_t addTable(const crossbow::string& name, const tell::store::Table& table);
