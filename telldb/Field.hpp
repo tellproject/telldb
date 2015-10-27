@@ -112,7 +112,7 @@ public:
         return mValue;
     }
 private:
-    size_t serialize(store::FieldType type, char* dest) const;
+    size_t serialize(char* dest) const;
 };
 
 } // namespace db
