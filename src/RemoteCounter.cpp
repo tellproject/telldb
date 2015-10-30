@@ -89,23 +89,24 @@ void RemoteCounter::requestNewBatch(store::ClientHandle& handle) {
     uint64_t nextCounter;
     while (true) {
         auto getFuture = handle.get(*mCounterTable, mCounterId);
-        auto tuple = getFuture->get();
 
         std::shared_ptr<store::ModificationResponse> counterFuture;
-        if (tuple->found()) {
+        if (getFuture->waitForResult()) {
+            auto tuple = getFuture->get();
             nextCounter = static_cast<uint64_t>(mCounterTable->field<int64_t>(gCounterFieldName, tuple->data()));
             counterFuture = handle.update(*mCounterTable, mCounterId, tuple->version(),
                     createCounterTuple(nextCounter + RESERVED_BATCH));
-        } else {
+        } else if (getFuture->error() == store::error::not_found) {
             nextCounter = 0x0u;
             counterFuture = handle.insert(*mCounterTable, mCounterId, 0x0u, createCounterTuple(RESERVED_BATCH));
+        } else {
+            throw std::system_error(getFuture->error());
         }
-        auto ec = counterFuture->error();
-        if (!ec) {
+
+        if (counterFuture->waitForResult()) {
             break;
-        }
-        if (ec != store::error::not_in_snapshot) {
-            throw std::system_error(ec);
+        } else if (counterFuture->error() != store::error::not_in_snapshot) {
+            throw std::system_error(counterFuture->error());
         }
     }
 
