@@ -102,7 +102,6 @@ Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
 table_t TransactionCache::createTable(const crossbow::string& name, const store::Schema& schema) {
     auto table = mHandle.createTable(name, schema);
     table_t tableId{table.tableId()};
-    context.indexes->createIndexes(mSnapshot, mHandle, table);
     context.tableNames.emplace(name, tableId);
     auto cTable = new Table(table);
     context.tables.emplace(tableId, cTable);
@@ -111,7 +110,7 @@ table_t TransactionCache::createTable(const crossbow::string& name, const store:
                 mHandle,
                 mSnapshot,
                 mPool,
-                context.indexes->createIndexes(mSnapshot, mHandle, *cTable)));
+                context.indexes->createIndexes(mSnapshot, mHandle, table)));
     return tableId;
 }
 

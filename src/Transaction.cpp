@@ -21,6 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "TransactionCache.hpp"
+#include "RemoteCounter.hpp"
 
 #include <telldb/TellDB.hpp>
 #include <telldb/Transaction.hpp>
@@ -32,6 +33,30 @@ using namespace tell::store;
 namespace tell {
 namespace db {
 using namespace impl;
+
+
+class CounterImpl {
+    RemoteCounter remoteCounter;
+    ClientHandle& mHandle;
+public:
+    CounterImpl(RemoteCounter&& counter, ClientHandle& handle)
+        : remoteCounter(std::move(counter))
+        , mHandle(handle)
+    {}
+    uint64_t next() {
+        return remoteCounter.incrementAndGet(mHandle);
+    }
+};
+
+Counter::Counter(CounterImpl* impl)
+    : impl(impl)
+{}
+Counter::Counter(Counter&&) = default;
+Counter::~Counter() = default;
+
+uint64_t Counter::next() {
+    return impl->next();
+}
 
 Transaction::Transaction(ClientHandle& handle, TellDBContext& context,
         std::unique_ptr<commitmanager::SnapshotDescriptor> snapshot, TransactionType type)
@@ -59,6 +84,28 @@ Future<table_t> Transaction::openTable(const crossbow::string& name) {
 
 table_t Transaction::createTable(const crossbow::string& name, const store::Schema& schema) {
     return mCache->createTable(name, schema);
+}
+
+crossbow::string globalCounterName(const crossbow::string& name) {
+    return "__global_counter_" + name;
+}
+
+Counter Transaction::createCounter(const crossbow::string& name) {
+    RemoteCounter::createTable(mHandle, globalCounterName(name));
+    return getCounter(name);
+}
+
+Counter Transaction::getCounter(const crossbow::string& name) {
+    auto counterName = globalCounterName(name);
+    auto iter = mContext.tableNames.find(counterName);
+    std::shared_ptr<store::Table> counterTable;
+    if (iter != mContext.tableNames.end()) {
+        counterTable = std::make_shared<store::Table>(*mContext.tables.at(iter->second));
+    } else {
+        auto tId = openTable(counterName).get();
+        counterTable = std::make_shared<store::Table>(*mContext.tables.at(tId));
+    }
+    return Counter(new CounterImpl(RemoteCounter(counterTable, 1), mHandle));
 }
 
 Future<Tuple> Transaction::get(table_t table, key_t key) {

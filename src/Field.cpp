@@ -52,8 +52,8 @@ bool Field::operator< (const Field& rhs) const {
         return boost::any_cast<double>(mValue) < boost::any_cast<double>(rhs.mValue);
     case FieldType::TEXT:
         {
-            const crossbow::string& l = *boost::any_cast<const crossbow::string*>(mValue);
-            const crossbow::string& r = *boost::any_cast<const crossbow::string*>(rhs.mValue);
+            const crossbow::string& l = boost::any_cast<const crossbow::string&>(mValue);
+            const crossbow::string& r = boost::any_cast<const crossbow::string&>(rhs.mValue);
             return l < r;
         }
     case FieldType::BLOB:

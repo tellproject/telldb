@@ -154,6 +154,17 @@ extern template class Future<Tuple>;
 
 #endif // DOXYGEN
 
+class CounterImpl;
+class Counter {
+    friend class Transaction;
+    std::unique_ptr<CounterImpl> impl;
+    Counter(CounterImpl* impl);
+public:
+    uint64_t next();
+    Counter(Counter&&);
+    ~Counter();
+};
+
 class Transaction {
 public: // Types
     /**
@@ -200,6 +211,20 @@ public: // table operation
      * @param schema The table schema and the indexes
      */
     table_t createTable(const crossbow::string& name, const store::Schema& schema);
+    /**
+     * @brief creates a server-side counter.
+     *
+     * @param name The name of the counter to be created
+     * @return A reference object to the counter
+     */
+    Counter createCounter(const crossbow::string& name);
+    /**
+     * @brief Get a reference to an existing counter.
+     *
+     * @param name The name of the counter to get
+     * @return A referance to a counter
+     */
+    Counter getCounter(const crossbow::string& name);
 public: // read-write operations
     /**
      * @brief Gets a tuple from the storage
@@ -325,7 +350,7 @@ template<id_t id, class... T>
 struct tuple_set {
     static void set(const std::tuple<T...>& tuple, Tuple& t) {
         t[id] = Field::create(std::get<id>(tuple));
-        tuple_set<id, T...>::set(tuple, t);
+        tuple_set<id - 1, T...>::set(tuple, t);
     }
 };
 
