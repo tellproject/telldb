@@ -78,10 +78,10 @@ uint64_t RemoteCounter::incrementAndGet(store::ClientHandle& handle) {
 
 uint64_t RemoteCounter::remoteValue(store::ClientHandle& handle) const {
     auto getFuture = handle.get(*mCounterTable, mCounterId);
-    auto tuple = getFuture->get();
-    if (!tuple->found()) {
+    if (!getFuture->waitForResult() && getFuture->error() == store::error::not_found) {
         return 0x0u;
     }
+    auto tuple = getFuture->get();
     return static_cast<uint64_t>(mCounterTable->field<int64_t>(gCounterFieldName, tuple->data()));
 }
 

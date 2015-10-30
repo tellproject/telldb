@@ -280,13 +280,13 @@ bool Future<Tuple>::wait() const {
 const Tuple& Future<Tuple>::get() {
     if (result) return *result;
     else {
-        auto resp = response->get();
-        if (!resp->found()) {
+        if (!response->waitForResult() && response->error() == store::error::not_found) {
             crossbow::string msg = "Tuple with key ";
             msg += boost::lexical_cast<crossbow::string>(key);
             msg += " does not exist";
             throw std::range_error(msg.data());
         }
+        auto resp = response->get();
         result = &cache->addTuple(key, *resp);
         return *result;
     }

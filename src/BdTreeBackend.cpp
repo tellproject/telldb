@@ -66,26 +66,24 @@ BdTreeNodeData::BdTreeNodeData(store::Table& table, store::Record::id_t id, std:
 
 std::unique_ptr<store::Tuple> BdTreeBaseTable::doRead(uint64_t key, std::error_code& ec) {
     auto getFuture = mHandle.get(mTable.table(), key);
-    if (!getFuture->waitForResult()) {
+    if (getFuture->waitForResult()) {
+        return getFuture->get();
+    } else if (getFuture->error() == store::error::not_found) {
+        ec = make_error_code(bdtree::error::object_doesnt_exist);
+        return {nullptr};
+    } else {
         ec = getFuture->error();
         return {nullptr};
     }
-    auto tuple = getFuture->get();
-
-    if (!tuple->found()) {
-        ec = make_error_code(bdtree::error::object_doesnt_exist);
-        return {nullptr};
-    }
-
-    return tuple;
 }
 
 bool BdTreeBaseTable::doInsert(uint64_t key, store::GenericTuple tuple, std::error_code& ec) {
     auto insertFuture = mHandle.insert(mTable.table(), key, 0x0u, std::move(tuple));
-    ec = insertFuture->error();
-    if (!ec) {
+    if (insertFuture->waitForResult()) {
         return true;
     }
+
+    ec = insertFuture->error();
     if (ec == store::error::invalid_write || ec == store::error::not_in_snapshot) {
         ec = make_error_code(bdtree::error::object_exists);
     }
@@ -94,10 +92,11 @@ bool BdTreeBaseTable::doInsert(uint64_t key, store::GenericTuple tuple, std::err
 
 bool BdTreeBaseTable::doUpdate(uint64_t key, store::GenericTuple tuple, uint64_t version, std::error_code& ec) {
     auto updateFuture = mHandle.update(mTable.table(), key, version, std::move(tuple));
-    ec = updateFuture->error();
-    if (!ec) {
+    if (updateFuture->waitForResult()) {
         return true;
     }
+
+    ec = updateFuture->error();
     if (ec == store::error::invalid_write) {
         ec = make_error_code(bdtree::error::object_doesnt_exist);
     } else if (ec == store::error::not_in_snapshot) {
@@ -108,10 +107,11 @@ bool BdTreeBaseTable::doUpdate(uint64_t key, store::GenericTuple tuple, uint64_t
 
 bool BdTreeBaseTable::doRemove(uint64_t key, uint64_t version, std::error_code& ec) {
     auto removeFuture = mHandle.remove(mTable.table(), key, version);
-    ec = removeFuture->error();
-    if (!ec) {
+    if (removeFuture->waitForResult()) {
         return true;
     }
+
+    ec = removeFuture->error();
     if (ec == store::error::invalid_write) {
         ec = make_error_code(bdtree::error::object_doesnt_exist);
     } else if (ec == store::error::not_in_snapshot) {
