@@ -69,6 +69,8 @@ Iterator::Iterator(const Iterator& other)
 {
 }
 
+Iterator::Iterator(Iterator&&) = default;
+
 Iterator& Iterator::operator=(const Iterator& other) {
     mImpl.reset(other.mImpl->copy());
     return *this;

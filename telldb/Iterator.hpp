@@ -45,7 +45,7 @@ class Iterator {
     std::unique_ptr<impl::IteratorImpl> mImpl;
 public:
     Iterator(std::unique_ptr<impl::IteratorImpl> impl);
-    Iterator(Iterator&&) = default;
+    Iterator(Iterator&&);
     Iterator(const Iterator& other);
     ~Iterator();
     Iterator& operator=(Iterator&&) = default;

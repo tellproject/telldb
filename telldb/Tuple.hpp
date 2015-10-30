@@ -66,8 +66,16 @@ public: // Access
         return mFields[id];
     }
 
-    Field& operator[] (const crossbow::string& name);
-    const Field& operator[] (const crossbow::string& name) const;
+    Field& operator[] (const crossbow::string& name) {
+        id_t id;
+        mRecord.idOf(name, id);
+        return (*this)[id];
+    }
+    const Field& operator[] (const crossbow::string& name) const {
+        id_t id;
+        mRecord.idOf(name, id);
+        return (*this)[id];
+    }
 
     Field& at(id_t id) {
         return mFields.at(id);
@@ -77,9 +85,17 @@ public: // Access
         return mFields.at(id);
     }
 
-    Field& at(const crossbow::string& name);
+    Field& at(const crossbow::string& name) {
+        id_t id;
+        mRecord.idOf(name, id);
+        return this->at(id);
+    }
 
-    const Field& at(const crossbow::string& name) const;
+    const Field& at(const crossbow::string& name) const {
+        id_t id;
+        mRecord.idOf(name, id);
+        return this->at(id);
+    }
 public:
     size_t size() const override;
     void serialize(char* dest) const override;

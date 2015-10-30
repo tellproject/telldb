@@ -84,6 +84,10 @@ public:
     bool operator>=(const Field& rhs) const;
     bool operator<=(const Field& rhs) const;
     bool operator==(const Field& rhs) const;
+    Field operator+ (const Field& rhs) const;
+    Field operator- (const Field& rhs) const;
+    Field& operator+= (const Field& rhs);
+    Field& operator-= (const Field& rhs);
 public:
     /**
      * @brief Cast to another type

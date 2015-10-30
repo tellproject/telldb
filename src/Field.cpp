@@ -79,6 +79,80 @@ bool Field::operator==(const Field& rhs) const {
     return !(*this < rhs) && !(rhs < *this);
 }
 
+Field& Field::operator+= (const Field& rhs) {
+    if (mType != rhs.type()) {
+        throw std::invalid_argument("Can only add Fields of same type");
+    }
+    switch (mType) {
+    case FieldType::NULLTYPE:
+        return *this;
+    case FieldType::NOTYPE:
+        throw std::invalid_argument("Can not compare fields without types");
+    case FieldType::SMALLINT:
+        boost::any_cast<int16_t&>(mValue) += boost::any_cast<int16_t>(rhs.mValue);
+        return *this;
+    case FieldType::INT:
+        boost::any_cast<int32_t&>(mValue) += boost::any_cast<int32_t>(rhs.mValue);
+    case FieldType::BIGINT:
+        boost::any_cast<int64_t&>(mValue) += boost::any_cast<int64_t>(rhs.mValue);
+        return *this;
+    case FieldType::FLOAT:
+        boost::any_cast<float&>(mValue) += boost::any_cast<float>(rhs.mValue);
+        return *this;
+    case FieldType::DOUBLE:
+        boost::any_cast<double&>(mValue) += boost::any_cast<double>(rhs.mValue);
+        return *this;
+    case FieldType::TEXT:
+    case FieldType::BLOB:
+        throw std::invalid_argument("Can not calc minus on TEXT or BLOB");
+    }
+    assert(false);
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
+}
+
+Field& Field::operator-= (const Field& rhs) {
+    if (mType != rhs.type()) {
+        throw std::invalid_argument("Can only add Fields of same type");
+    }
+    switch (mType) {
+    case FieldType::NULLTYPE:
+        return *this;
+    case FieldType::NOTYPE:
+        throw std::invalid_argument("Can not compare fields without types");
+    case FieldType::SMALLINT:
+        boost::any_cast<int16_t&>(mValue) -= boost::any_cast<int16_t>(rhs.mValue);
+        return *this;
+    case FieldType::INT:
+        boost::any_cast<int32_t&>(mValue) -= boost::any_cast<int32_t>(rhs.mValue);
+    case FieldType::BIGINT:
+        boost::any_cast<int64_t&>(mValue) -= boost::any_cast<int64_t>(rhs.mValue);
+        return *this;
+    case FieldType::FLOAT:
+        boost::any_cast<float&>(mValue) -= boost::any_cast<float>(rhs.mValue);
+        return *this;
+    case FieldType::DOUBLE:
+        boost::any_cast<double&>(mValue) -= boost::any_cast<double>(rhs.mValue);
+        return *this;
+    case FieldType::TEXT:
+    case FieldType::BLOB:
+        throw std::invalid_argument("Can not calc minus on TEXT or BLOB");
+    }
+    assert(false);
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
+}
+
+Field Field::operator+(const Field& rhs) const {
+    Field res = *this;
+    res += rhs;
+    return res;
+}
+
+Field Field::operator-(const Field& rhs) const {
+    Field res = *this;
+    res -= rhs;
+    return res;
+}
+
 template<class T>
 boost::any castTo(const T& value, FieldType target) {
     switch (target) {
