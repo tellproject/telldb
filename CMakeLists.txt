@@ -76,8 +76,6 @@ else()
     endif()
 endif()
 
-add_subdirectory(benchmark)
-
 # Install the library
 install(TARGETS telldb EXPORT TellDBTargets
         ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
