@@ -31,12 +31,13 @@ namespace tell {
 namespace db {
 
 TableCache::TableCache(const tell::store::Table& table,
-        impl::TellDBContext& context,
-        tell::store::ClientTransaction& transaction,
+        tell::store::ClientHandle& handle,
+        const commitmanager::SnapshotDescriptor& snapshot,
         crossbow::ChunkMemoryPool& pool,
         std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes)
     : mTable(table)
-    , mTransaction(transaction)
+    , mHandle(handle)
+    , mSnapshot(snapshot)
     , mPool(pool)
     , mCache(&pool)
     , mChanges(&pool)
@@ -86,7 +87,7 @@ Future<Tuple> TableCache::get(key_t key) {
             return Future<Tuple>(key, iter->second.first);
         }
     }
-    return Future<Tuple>(key, this, mTransaction.get(mTable, key.value));
+    return Future<Tuple>(key, this, mHandle.get(mTable, key.value, mSnapshot));
 }
 
 Iterator TableCache::lower_bound(const crossbow::string& name, const KeyType& key) {
@@ -189,13 +190,13 @@ void TableCache::writeBack() {
         auto tuple = std::get<0>(change.second);
         switch (std::get<1>(change.second)) {
         case Operation::Insert:
-            responses.emplace_back(std::make_pair(mTransaction.insert(mTable, change.first, *tuple), iter));
+            responses.emplace_back(std::make_pair(mHandle.insert(mTable, change.first, mSnapshot, *tuple), iter));
             break;
         case Operation::Update:
-            responses.emplace_back(std::make_pair(mTransaction.update(mTable, change.first, *tuple), iter));
+            responses.emplace_back(std::make_pair(mHandle.update(mTable, change.first, mSnapshot, *tuple), iter));
             break;
         case Operation::Delete:
-            responses.emplace_back(std::make_pair(mTransaction.remove(mTable, change.first), iter));
+            responses.emplace_back(std::make_pair(mHandle.remove(mTable, change.first, mSnapshot), iter));
         }
     }
     bool hadError = false;
@@ -225,7 +226,7 @@ void TableCache::rollback() {
     responses.reserve(mCache.size());
     for (auto& change : mChanges) {
         if (!std::get<2>(change.second)) continue;
-        responses.emplace_back(mTransaction.revert(mTable, change.first));
+        responses.emplace_back(mHandle.revert(mTable, change.first, mSnapshot));
     }
     for (auto iter = responses.rbegin(); iter != responses.rend(); ++iter) {
         if ((*iter)->error()) {

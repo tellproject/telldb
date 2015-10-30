@@ -20,8 +20,11 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
+
 #include <telldb/Tuple.hpp>
 #include <tellstore/Table.hpp>
+
+#include <crossbow/alignment.hpp>
 
 #include <memory.h>
 
@@ -92,60 +95,47 @@ Tuple::Tuple(const store::Record& record, crossbow::ChunkMemoryPool& pool)
 }
 
 size_t Tuple::size() const {
+    auto result = mRecord.minimumSize();
     const auto& schema = mRecord.schema();
-    size_t result = 0;
-    if (!mRecord.schema().allNotNull()) {
-        // There is a NULL-bitmap
-        result += (schema.fixedSizeFields().size() + schema.varSizeFields().size() + 7) / 8;
-        // Padding
-        result += result % 8 == 8 ? 0 : (8 - (result % 8));
-    }
-    for (const auto& f : schema.fixedSizeFields()) {
-        result += f.defaultSize();
-    }
     for (unsigned i = schema.fixedSizeFields().size(); i < mFields.size(); ++i) {
-        switch (mFields[i].type()) {
-        case store::FieldType::NULLTYPE:
-            break;
-        case store::FieldType::TEXT:
-        case store::FieldType::BLOB:
-            {
-                const auto& v = boost::any_cast<const crossbow::string&>(mFields[i].value());
-                auto sz = 4 + v.size();
-                result += (sz % 8 == 0 ? 0 : (8 - (sz % 8)));
-            }
-            break;
-        default:
-            throw std::invalid_argument("Wrong tuple type");
+        if (mFields[i].type() == store::FieldType::NULLTYPE) {
+            continue;
         }
+
+        const auto& v = boost::any_cast<const crossbow::string&>(mFields[i].value());
+        result += v.size();
+        // TODO Fix alignment in record
+        //result = crossbow::align(result, 8u);
     }
     return result;
 }
 
 void Tuple::serialize(char* dest) const {
     const auto& schema = mRecord.schema();
-    size_t offset = 0;
-    auto numFields = schema.fixedSizeFields().size() + schema.varSizeFields().size();
     if (!mRecord.schema().allNotNull()) {
-        offset += (numFields + 7) / 8;
-        offset += offset % 8 == 8 ? 0 : (8 - (offset % 8));
         // set bitmap to null
-        ::memset(dest, 0, offset);
+        auto headerSize = mRecord.headerSize();
+        ::memset(dest, 0, headerSize);
+        dest += headerSize;
     }
     const auto& fixedSize = schema.fixedSizeFields();
     auto numFixedSize = fixedSize.size();
+    auto numFields = mRecord.fieldCount();
     const auto& varSizedFields = schema.varSizeFields();
     for (unsigned i = 0; i < numFields; ++i) {
         if (mFields[i].null()) {
-            dest[i/8] |= 1 << (8 - (i % 8));
-        }
-        store::FieldType type;
-        if (i < fixedSize.size()) {
-            type = fixedSize[i].type();
+            mRecord.setFieldNull(dest, i, true);
+            store::FieldType type;
+            if (i < fixedSize.size()) {
+                type = fixedSize[i].type();
+            } else {
+                type = varSizedFields[i - numFixedSize].type();
+            }
+            store::FieldBase f(type);
+            dest += f.defaultSize();
         } else {
-            type = varSizedFields[i - numFixedSize].type();
+            dest += mFields[i].serialize(dest);
         }
-        offset += mFields[i].serialize(type, dest + offset);
     }
 }
 

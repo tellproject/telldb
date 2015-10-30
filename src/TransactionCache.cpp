@@ -75,11 +75,11 @@ Iterator TransactionCache::reverse_lower_bound(table_t tableId, const crossbow::
 
 TransactionCache::TransactionCache(TellDBContext& context,
         store::ClientHandle& handle,
-        store::ClientTransaction& transaction,
+        const commitmanager::SnapshotDescriptor& snapshot,
         crossbow::ChunkMemoryPool& pool)
     : context(context)
     , mHandle(handle)
-    , mTransaction(transaction)
+    , mSnapshot(snapshot)
     , mPool(pool)
     , mTables(&pool)
 {}
@@ -92,7 +92,7 @@ Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
         res.result.value = tableId.value;
         if (mTables.count(tableId) == 0) {
             const auto& t = context.tables[res.result];
-            addTable(*context.tables[res.result], context.indexes->openIndexes(mTransaction.snapshot(), mHandle, *t));
+            addTable(*context.tables[res.result], context.indexes->openIndexes(mSnapshot, mHandle, *t));
         }
         return res;
     }
@@ -102,16 +102,16 @@ Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
 table_t TransactionCache::createTable(const crossbow::string& name, const store::Schema& schema) {
     auto table = mHandle.createTable(name, schema);
     table_t tableId{table.tableId()};
-    context.indexes->createIndexes(mTransaction.snapshot(), mHandle, table);
+    context.indexes->createIndexes(mSnapshot, mHandle, table);
     context.tableNames.emplace(name, tableId);
     auto cTable = new Table(table);
     context.tables.emplace(tableId, cTable);
     mTables.emplace(tableId,
             new (&mPool) TableCache(*cTable,
-                context,
-                mTransaction,
+                mHandle,
+                mSnapshot,
                 mPool,
-                context.indexes->createIndexes(mTransaction.snapshot(), mHandle, *cTable)));
+                context.indexes->createIndexes(mSnapshot, mHandle, *cTable)));
     return tableId;
 }
 
@@ -142,14 +142,14 @@ table_t TransactionCache::addTable(const tell::store::Table& table,
         std::unordered_map<crossbow::string,
         impl::IndexWrapper>&& indexes) {
     auto id = table.tableId();
-    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, context, mTransaction, mPool, std::move(indexes)));
+    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, mHandle, mSnapshot, mPool, std::move(indexes)));
     table_t res;
     res.value = id;
     return res;
 }
 
 table_t TransactionCache::addTable(const crossbow::string& name, const tell::store::Table& table) {
-    auto indexes = context.indexes->openIndexes(mTransaction.snapshot(), mHandle, table);
+    auto indexes = context.indexes->openIndexes(mSnapshot, mHandle, table);
     table_t res{table.tableId()};
     Table* t = nullptr;
     auto iter = context.tables.find(res);

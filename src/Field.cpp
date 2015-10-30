@@ -199,10 +199,10 @@ Field Field::cast(tell::store::FieldType t) {
     throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
-size_t Field::serialize(store::FieldType type, char* dest) const {
+size_t Field::serialize(char* dest) const {
     switch (mType) {
     case FieldType::NULLTYPE:
-        return 0;
+        throw std::invalid_argument("Can not serialize a nulltype");
     case FieldType::NOTYPE:
         throw std::invalid_argument("Can not serialize a notype");
     case FieldType::BLOB:
@@ -213,7 +213,8 @@ size_t Field::serialize(store::FieldType type, char* dest) const {
             memcpy(dest, &sz, sizeof(sz));
             memcpy(dest + sizeof(sz), v.data(), v.size());
             auto res = sizeof(sz) + v.size();
-            res += res % 8 == 0 ? 0 : (8 - (res % 8));
+            // TODO Fix alignment in record
+            //res = crossbow::align(res, 8u);
             return res;
         }
     case FieldType::SMALLINT:

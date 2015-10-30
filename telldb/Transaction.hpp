@@ -38,9 +38,14 @@
  */
 
 namespace tell {
+namespace commitmanager {
+
+class SnapshotDescriptor;
+
+} // namespace commitmanager
+
 namespace store {
 
-class ClientTransaction;
 class ClientHandle;
 class GetTableResponse;
 class GetResponse;
@@ -157,18 +162,18 @@ public: // Types
     using ChunkString = crossbow::basic_string<char, std::char_traits<char>, crossbow::ChunkAllocator<char>>;
 private:
     tell::store::ClientHandle& mHandle;
-    tell::store::ClientTransaction& mTx;
     impl::TellDBContext& mContext;
     crossbow::ChunkMemoryPool mPool;
+    std::unique_ptr<commitmanager::SnapshotDescriptor> mSnapshot;
     std::unique_ptr<TransactionCache> mCache;
     // will be set to true if there is any data
     // written to the storage
+    store::TransactionType mType;
     bool mCommitted = false;
-    bool mDidWriteBack = false;
 public:
     Transaction(tell::store::ClientHandle& handle,
-            tell::store::ClientTransaction& tx,
             impl::TellDBContext& context,
+            std::unique_ptr<commitmanager::SnapshotDescriptor> snapshot,
             tell::store::TransactionType type);
     ~Transaction();
 public: // table operation
