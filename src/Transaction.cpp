@@ -121,13 +121,13 @@ Iterator Transaction::reverse_lower_bound(table_t tableId, const crossbow::strin
 }
 
 void Transaction::insert(table_t table, key_t key, const std::unordered_map<crossbow::string, Field>& values) {
-    auto t = mContext.tables.at(table);
-    auto rec = t->record();
+    const auto& t = mContext.tables.at(table);
+    const auto& rec = t->record();
     const auto& schema = rec.schema();
-    Tuple tuple = Tuple(rec, mPool);
+    Tuple tuple(rec, mPool);
     Schema::id_t i = 0;
     auto numFixedSize = schema.fixedSizeFields().size();
-    const auto fixedSizeFields = schema.fixedSizeFields();
+    const auto& fixedSizeFields = schema.fixedSizeFields();
     for (; i < numFixedSize; ++i) {
         const auto& field = fixedSizeFields[i];
         auto iter = values.find(field.name());

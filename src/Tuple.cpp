@@ -102,6 +102,7 @@ size_t Tuple::size() const {
             continue;
         }
 
+        LOG_ASSERT(mFields[i].type() == store::FieldType::TEXT || mFields[i].type() == store::FieldType::BLOB, "Variable size field is not variable");
         const auto& v = boost::any_cast<const crossbow::string&>(mFields[i].value());
         result += v.size();
         // TODO Fix alignment in record
