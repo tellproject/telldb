@@ -22,6 +22,8 @@
  */
 #include <telldb/Field.hpp>
 
+#include <crossbow/logger.hpp>
+
 #include <boost/lexical_cast.hpp>
 #include <stdexcept>
 
@@ -209,41 +211,46 @@ size_t Field::serialize(char* dest) const {
     case FieldType::TEXT:
         {
             const auto& v = boost::any_cast<const crossbow::string&>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % 4u == 0u,
+                    "Pointer to variable sized field must be 4 byte aligned");
             int32_t sz = v.size();
             memcpy(dest, &sz, sizeof(sz));
             memcpy(dest + sizeof(sz), v.data(), v.size());
             auto res = sizeof(sz) + v.size();
-            // TODO Fix alignment in record
-            //res = crossbow::align(res, 8u);
             return res;
         }
     case FieldType::SMALLINT:
         {
             int16_t v = boost::any_cast<int16_t>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::INT:
         {
             int32_t v = boost::any_cast<int32_t>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::BIGINT:
         {
             int64_t v = boost::any_cast<int64_t>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::FLOAT:
         {
             float v = boost::any_cast<float>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::DOUBLE:
         {
             double v = boost::any_cast<double>(mValue);
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
