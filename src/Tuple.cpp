@@ -107,7 +107,7 @@ size_t Tuple::size() const {
         // TODO Fix alignment in record
         //result = crossbow::align(result, 8u);
     }
-    return result;
+    return crossbow::align(result, 8u);
 }
 
 void Tuple::serialize(char* dest) const {
