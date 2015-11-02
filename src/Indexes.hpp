@@ -495,7 +495,7 @@ public:
     IndexWrapper(
             const crossbow::string& name,
             bool uniqueIndex,
-            const std::vector<store::Schema::id_t>& fieds,
+            const std::vector<store::Schema::id_t>& fields,
             BdTreeBackend&& backend,
             const commitmanager::SnapshotDescriptor& snapshot,
             bool init = false);

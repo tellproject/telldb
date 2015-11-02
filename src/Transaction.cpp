@@ -37,25 +37,24 @@ using namespace impl;
 
 class CounterImpl {
     RemoteCounter remoteCounter;
-    ClientHandle& mHandle;
 public:
-    CounterImpl(RemoteCounter&& counter, ClientHandle& handle)
+    CounterImpl(RemoteCounter&& counter)
         : remoteCounter(std::move(counter))
-        , mHandle(handle)
     {}
-    uint64_t next() {
-        return remoteCounter.incrementAndGet(mHandle);
+    uint64_t next(store::ClientHandle& handle) {
+        return remoteCounter.incrementAndGet(handle);
     }
 };
 
-Counter::Counter(CounterImpl* impl)
+Counter::Counter(CounterImpl* impl, store::ClientHandle& handle)
     : impl(impl)
+    , mHandle(handle)
 {}
 Counter::Counter(Counter&&) = default;
 Counter::~Counter() = default;
 
 uint64_t Counter::next() {
-    return impl->next();
+    return impl->next(mHandle);
 }
 
 Transaction::Transaction(ClientHandle& handle, TellDBContext& context,
@@ -105,7 +104,7 @@ Counter Transaction::getCounter(const crossbow::string& name) {
         auto tId = openTable(counterName).get();
         counterTable = std::make_shared<store::Table>(*mContext.tables.at(tId));
     }
-    return Counter(new CounterImpl(RemoteCounter(counterTable, 1), mHandle));
+    return Counter(new CounterImpl(RemoteCounter(counterTable, 1)), mHandle);
 }
 
 Future<Tuple> Transaction::get(table_t table, key_t key) {
