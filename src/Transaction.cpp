@@ -120,16 +120,53 @@ Iterator Transaction::reverse_lower_bound(table_t tableId, const crossbow::strin
     return mCache->reverse_lower_bound(tableId, idxName, key);
 }
 
+void Transaction::insert(table_t table, key_t key, const std::unordered_map<crossbow::string, Field>& values) {
+    auto t = mContext.tables.at(table);
+    auto rec = t->record();
+    const auto& schema = rec.schema();
+    Tuple tuple = Tuple(rec, mPool);
+    Schema::id_t i = 0;
+    auto numFixedSize = schema.fixedSizeFields().size();
+    const auto fixedSizeFields = schema.fixedSizeFields();
+    for (; i < numFixedSize; ++i) {
+        const auto& field = fixedSizeFields[i];
+        auto iter = values.find(field.name());
+        if (iter == values.end()) {
+            if (field.isNotNull()) {
+                throw FieldNotSet(field.name());
+            }
+            tuple[i] = nullptr;
+        } else {
+            tuple[i] = iter->second;
+        }
+    }
+    const auto& varSizeFields = schema.varSizeFields();
+    auto numVarSize = schema.varSizeFields().size();
+    for (; i < numVarSize + numFixedSize; ++i) {
+        const auto& field = varSizeFields[i - numFixedSize];
+        auto iter = values.find(field.name());
+        if (iter == values.end()) {
+            if (field.isNotNull()) {
+                throw FieldNotSet(field.name());
+            }
+            tuple[i] = nullptr;
+        } else {
+            tuple[i] = iter->second;
+        }
+    }
+    mCache->insert(table, key, tuple);
+}
+
 void Transaction::insert(table_t table, key_t key, const Tuple& tuple) {
-    return mCache->insert(table, key, tuple);
+    mCache->insert(table, key, tuple);
 }
 
 void Transaction::update(table_t table, key_t key, const Tuple& from, const Tuple& to) {
-    return mCache->update(table, key, from, to);
+    mCache->update(table, key, from, to);
 }
 
 void Transaction::remove(table_t table, key_t key, const Tuple& tuple) {
-    return mCache->remove(table, key, tuple);
+    mCache->remove(table, key, tuple);
 }
 
 void Transaction::commit() {
@@ -149,11 +186,29 @@ void Transaction::rollback() {
 }
 
 void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
-    auto resp = mHandle.insert(mContext.clientTable->txTable(), mSnapshot->version(), 0, {
-            std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
-    });
-    __attribute__((unused)) auto res = resp->waitForResult();
-    LOG_ASSERT(res, "Writeback did not succeed");
+    uint64_t key = mSnapshot->version() << 16;
+    if (log.first > 1024) {
+        size_t sizeWritten = 0;
+        std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
+        responses.reserve(log.first / 1024);
+        for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
+            key = ((key >> 16) << 16) | chunkNum;
+            auto toWrite = std::min(log.first - sizeWritten, size_t(1024));
+            responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), key, 0, {
+                        std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), toWrite))
+                        }));
+            sizeWritten += toWrite;
+        }
+        for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
+            auto resp = *i;
+            LOG_ASSERT(resp->waitForResult(), "Writeback did not succeed");
+        }
+    } else {
+        auto resp = mHandle.insert(mContext.clientTable->txTable(), key, 0, {
+                std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
+                });
+        LOG_ASSERT(resp->waitForResult(), "Writeback did not succeed");
+    }
 }
 
 void Transaction::writeBack(bool withIndexes) {

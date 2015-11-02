@@ -35,6 +35,22 @@ public:
     virtual ~Exception();
 };
 
+class FieldDoesNotExist : public Exception {
+    crossbow::string mMsg;
+public:
+    FieldDoesNotExist(const crossbow::string& fieldName);
+    virtual ~FieldDoesNotExist();
+    const char* what() const noexcept override ;
+ };
+
+class FieldNotSet : public Exception {
+    crossbow::string mMsg;
+public:
+    FieldNotSet(const crossbow::string& fieldName);
+    virtual ~FieldNotSet();
+    const char* what() const noexcept override ;
+};
+ 
 class KeyException : public Exception {
     key_t mKey;
     crossbow::string mMsg;

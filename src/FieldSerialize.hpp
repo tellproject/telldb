@@ -32,7 +32,7 @@ struct size_policy<Archiver, tell::db::Field>
 {
     size_t operator() (Archiver& ar, const tell::db::Field& field) const
     {
-        size_t res = 1;
+        size_t res = sizeof(tell::store::FieldType);
         switch (field.type()) {
         case tell::store::FieldType::NOTYPE:
             return res;

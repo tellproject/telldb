@@ -158,6 +158,7 @@ table_t TransactionCache::addTable(const crossbow::string& name, const tell::sto
         t = p.first->second;
     } else {
         t = iter->second;
+        context.tableNames[name] = tell::db::table_t{table.tableId()};
     }
     return addTable(*t, std::move(indexes));
 }
@@ -192,6 +193,7 @@ void TransactionCache::applyForLog(A& ar, bool withIndexes) const {
         }
         if (withIndexes) {
             const auto& indexes = t.second->indexes();
+            ar & indexes.size();
             for (const auto& idx : indexes) {
                 ar & idx.first;
                 ar & idx.second.cache();

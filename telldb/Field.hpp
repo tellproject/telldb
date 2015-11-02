@@ -53,6 +53,27 @@ public:
         : mType(t)
         , mValue(v)
     {}
+    Field(int16_t value)
+        : Field(store::FieldType::SMALLINT, value)
+    {}
+    Field(int32_t value)
+        : Field(store::FieldType::INT, value)
+    {}
+    Field(int64_t value)
+        : Field(store::FieldType::BIGINT, value)
+    {}
+    Field(float value)
+        : Field(store::FieldType::FLOAT, value)
+    {}
+    Field(double value)
+        : Field(store::FieldType::DOUBLE, value)
+    {}
+    Field(const crossbow::string& value)
+        : Field(store::FieldType::TEXT, value)
+    {}
+    Field(std::nullptr_t)
+        : Field(store::FieldType::NULLTYPE, nullptr)
+    {}
     static Field create(int16_t value) {
         return Field(store::FieldType::SMALLINT, value);
     }
