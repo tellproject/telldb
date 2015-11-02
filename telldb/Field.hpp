@@ -71,6 +71,9 @@ public:
     static Field create(const crossbow::string& value) {
         return Field(store::FieldType::TEXT, value);
     }
+    static Field create(std::nullptr_t) {
+        return Field(store::FieldType::NULLTYPE, boost::any());
+    }
     static Field createBlob(const crossbow::string& value) {
         return Field(store::FieldType::BLOB, value);
     }
