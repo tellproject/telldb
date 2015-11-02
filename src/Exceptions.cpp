@@ -34,6 +34,24 @@ TupleExistsException::~TupleExistsException() {}
 TupleDoesNotExist::~TupleDoesNotExist() {}
 Conflict::~Conflict() {}
 
+// FieldDoesNotExist
+FieldDoesNotExist::FieldDoesNotExist(const crossbow::string& name)
+    : mMsg(name + " does not exist in table")
+{}
+FieldDoesNotExist::~FieldDoesNotExist() = default;
+const char* FieldDoesNotExist::what() const noexcept {
+    return mMsg.c_str();
+}
+
+// FieldNotSet
+FieldNotSet::FieldNotSet(const crossbow::string& name)
+    : mMsg(name + " was not set and has no default")
+{}
+FieldNotSet::~FieldNotSet() = default;
+const char* FieldNotSet::what() const noexcept {
+    return mMsg.c_str();
+}
+
 // KeyException
 key_t KeyException::key() const noexcept {
     return mKey;

@@ -158,6 +158,7 @@ table_t TransactionCache::addTable(const crossbow::string& name, const tell::sto
         t = p.first->second;
     } else {
         t = iter->second;
+        context.tableNames[name] = tell::db::table_t{table.tableId()};
     }
     return addTable(*t, std::move(indexes));
 }
@@ -180,44 +181,33 @@ void TransactionCache::writeIndexes() {
     }
 }
 
-std::pair<size_t, uint8_t*> TransactionCache::undoLog(bool withIndexes) const {
-    crossbow::sizer s;
-    if (withIndexes) {
-        for (const auto& table : mTables) {
-            const auto& indexes = table.second->indexes();
-            for (const auto& idx : indexes) {
-                s & idx.first;
-                s & idx.second.cache();
-            }
-        }
-    }
+template<class A>
+void TransactionCache::applyForLog(A& ar, bool withIndexes) const {
     for (const auto& t : mTables) {
+        ar & t.first;
         const auto& cs = t.second->changes();
         uint32_t numChanges = cs.size();
-        s & t.first;
-        s & numChanges;
+        ar & numChanges;
         for (const auto& c : cs) {
-            s & c.first;
-        }
-    }
-    auto res = reinterpret_cast<uint8_t*>(mPool.allocate(s.size));
-    crossbow::serializer ser(res);
-    for (const auto& t : mTables) {
-        ser & t.first;
-        const auto& cs = t.second->changes();
-        uint32_t numChanges = cs.size();
-        ser & numChanges;
-        for (const auto& c : cs) {
-            ser & c.first;
+            ar & c.first;
         }
         if (withIndexes) {
             const auto& indexes = t.second->indexes();
+            ar & indexes.size();
             for (const auto& idx : indexes) {
-                s & idx.first;
-                s & idx.second.cache();
+                ar & idx.first;
+                ar & idx.second.cache();
             }
         }
     }
+}
+
+std::pair<size_t, uint8_t*> TransactionCache::undoLog(bool withIndexes) const {
+    crossbow::sizer s;
+    applyForLog(s, withIndexes);
+    auto res = reinterpret_cast<uint8_t*>(mPool.allocate(s.size));
+    crossbow::serializer ser(res);
+    applyForLog(ser, withIndexes);
     ser.buffer.release();
     return std::make_pair(s.size, res);
 }

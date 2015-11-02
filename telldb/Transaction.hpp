@@ -259,8 +259,21 @@ public: // read-write operations
      * @throws TupleExistsException If the key is already in the local cache.
      */
     void insert(table_t table, key_t key, const Tuple& tuple);
-    template<class... T>
-    void insert(table_t table, key_t key, const std::tuple<T...>& tuple);
+    /**
+     * @brief Inserts a new tuple
+     *
+     * This will insert a new tuple with the values passed. The values
+     * are saved in a map. Its key is the name of the field and its value
+     * the value to set the field to.
+     *
+     * @param table  The table id
+     * @param key    The key of the tuple
+     * @param values The tuple to insert
+     * @throws TupleExistsException If the key is already in the local cache.
+     * @throws FieldDoesNotExist If a field does not exist in the schema.
+     * @throws FieldNotSet If a required field is not set in the tuple.
+     */
+    void insert(table_t table, key_t key, const std::unordered_map<crossbow::string, Field>& values);
     /**
      * @brief Updates a tuple
      *
@@ -360,13 +373,6 @@ struct tuple_set<0, T...> {
         t[0] = Field::create(std::get<0>(tuple));
     }
 };
-
-template<class... T>
-void Transaction::insert(table_t table, key_t key, const std::tuple<T...>& tuple) {
-    Tuple t(this->getRecord(table), pool());
-    tuple_set<std::tuple_size<std::tuple<T...>>::value - 1, T...>::set(tuple, t);
-    this->insert(table, key, t);
-}
 
 } // namespace db
 } // namespace tell
