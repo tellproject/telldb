@@ -182,7 +182,7 @@ void TableCache::writeBack() {
     using Resp = std::shared_ptr<store::ModificationResponse>;
     using ChangeResp = std::pair<Resp, ChangesMap::iterator>;
     std::vector<ChangeResp, crossbow::ChunkAllocator<ChangeResp>> responses(&mPool);
-    responses.reserve(mCache.size());
+    responses.reserve(mChanges.size());
     for (auto iter = mChanges.begin(); iter != mChanges.end(); ++iter) {
         auto& change = *iter;
         bool& didChange = std::get<2>(change.second);

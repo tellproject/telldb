@@ -89,3 +89,5 @@ install(EXPORT TellDBTargets DESTINATION ${CMAKE_INSTALL_DIR})
 configure_file(TellDBConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/TellDBConfig.cmake @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/TellDBConfig.cmake DESTINATION ${CMAKE_INSTALL_DIR})
 
+add_subdirectory(tests)
+

@@ -40,19 +40,19 @@ boost::any deserialize(tell::store::FieldType type, const char* const data) {
         return nullptr;
     case FieldType::SMALLINT:
         LOG_ASSERT(reinterpret_cast<uintptr_t>(data) % alignof(int16_t) == 0u, "Pointer to field must be aligned");
-        return *reinterpret_cast<const int16_t*>(data);
+        return int16_t(*reinterpret_cast<const int16_t*>(data));
     case FieldType::INT:
         LOG_ASSERT(reinterpret_cast<uintptr_t>(data) % alignof(int32_t) == 0u, "Pointer to field must be aligned");
-        return *reinterpret_cast<const int32_t*>(data);
+        return int32_t(*reinterpret_cast<const int32_t*>(data));
     case FieldType::BIGINT:
         LOG_ASSERT(reinterpret_cast<uintptr_t>(data) % alignof(int64_t) == 0u, "Pointer to field must be aligned");
-        return *reinterpret_cast<const int64_t*>(data);
+        return int64_t(*reinterpret_cast<const int64_t*>(data));
     case FieldType::FLOAT:
         LOG_ASSERT(reinterpret_cast<uintptr_t>(data) % alignof(float) == 0u, "Pointer to field must be aligned");
-        return *reinterpret_cast<const float*>(data);
+        return float(*reinterpret_cast<const float*>(data));
     case FieldType::DOUBLE:
         LOG_ASSERT(reinterpret_cast<uintptr_t>(data) % alignof(double) == 0u, "Pointer to field must be aligned");
-        return *reinterpret_cast<const double*>(data);
+        return double(*reinterpret_cast<const double*>(data));
     case FieldType::TEXT:
     case FieldType::BLOB:
         {
@@ -103,7 +103,7 @@ Tuple::Tuple(const store::Record& record, crossbow::ChunkMemoryPool& pool)
 size_t Tuple::size() const {
     auto result = mRecord.fixedSize();
     const auto& schema = mRecord.schema();
-    for (decltype(mFields.size()) i = schema.fixedSizeFields().size(); i < mFields.size(); ++i) {
+    for (decltype(mFields.size()) i = schema.varSizeFields().size(); i < mFields.size(); ++i) {
         result = crossbow::align(result, 4u);
         result += sizeof(uint32_t);
         if (mFields[i].type() != store::FieldType::NULLTYPE) {
@@ -116,11 +116,13 @@ size_t Tuple::size() const {
 
 void Tuple::serialize(char* dest) const {
     const auto& schema = mRecord.schema();
+    auto someNull = !mRecord.schema().allNotNull();
+    auto pos = dest;
     if (!mRecord.schema().allNotNull()) {
         // set bitmap to null
         auto headerSize = mRecord.headerSize();
         ::memset(dest, 0, headerSize);
-        dest += headerSize;
+        pos += headerSize;
     }
     const auto& fixedSize = schema.fixedSizeFields();
     auto numFixedSize = fixedSize.size();
@@ -129,10 +131,11 @@ void Tuple::serialize(char* dest) const {
     for (decltype(numFields) i = 0; i < numFields; ++i) {
         auto isFixedSize = (i < numFixedSize);
         if (!isFixedSize) {
-            dest = crossbow::align(dest, 4u);
+            pos = crossbow::align(pos, 4u);
         }
+        if (someNull)
+            mRecord.setFieldNull(dest, i, mFields[i].null());
         if (mFields[i].null()) {
-            mRecord.setFieldNull(dest, i, true);
             store::FieldType type;
             if (isFixedSize) {
                 type = fixedSize[i].type();
@@ -141,10 +144,10 @@ void Tuple::serialize(char* dest) const {
             }
             store::FieldBase f(type);
             auto defaultSize = f.defaultSize();
-            memset(dest, 0, defaultSize);
-            dest += defaultSize;
+            memset(pos, 0, defaultSize);
+            pos += defaultSize;
         } else {
-            dest += mFields[i].serialize(dest);
+            pos += mFields[i].serialize(pos);
         }
     }
 }
