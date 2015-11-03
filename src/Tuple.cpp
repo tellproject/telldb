@@ -103,7 +103,7 @@ Tuple::Tuple(const store::Record& record, crossbow::ChunkMemoryPool& pool)
 size_t Tuple::size() const {
     auto result = mRecord.fixedSize();
     const auto& schema = mRecord.schema();
-    for (decltype(mFields.size()) i = schema.varSizeFields().size(); i < mFields.size(); ++i) {
+    for (decltype(mFields.size()) i = schema.fixedSizeFields().size(); i < mFields.size(); ++i) {
         result = crossbow::align(result, 4u);
         result += sizeof(uint32_t);
         if (mFields[i].type() != store::FieldType::NULLTYPE) {
