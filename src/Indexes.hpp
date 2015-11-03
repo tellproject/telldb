@@ -487,7 +487,7 @@ public: // Types
 private:
     crossbow::string mName;
     std::vector<store::Schema::id_t> mFields;
-    BdTreeBackend mBackend;
+    std::unique_ptr<BdTreeBackend> mBackend;
     const commitmanager::SnapshotDescriptor& mSnapshot;
     std::unique_ptr<BdTree> mBdTree;
     Cache mCache;

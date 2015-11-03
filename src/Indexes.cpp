@@ -199,11 +199,11 @@ IndexWrapper::IndexWrapper(
         bool init)
     : mName(name)
     , mFields(fields)
-    , mBackend(std::move(backend))
+    , mBackend(new BdTreeBackend(std::move(backend)))
     , mSnapshot(snapshot)
     , mBdTree(uniqueIndex ?
-            static_cast<BdTree*>(new UniqueBdTree(mSnapshot, mBackend, init)) :
-            static_cast<BdTree*>(new NonUniqueBdTree(mSnapshot, mBackend, init)))
+            static_cast<BdTree*>(new UniqueBdTree(mSnapshot, *mBackend, init)) :
+            static_cast<BdTree*>(new NonUniqueBdTree(mSnapshot, *mBackend, init)))
 {
 }
 
