@@ -22,6 +22,8 @@
  */
 #include <telldb/TellDB.hpp>
 #include <telldb/Transaction.hpp>
+
+#include <crossbow/allocator.hpp>
 #include <crossbow/program_options.hpp>
 
 using namespace crossbow::program_options;
@@ -46,6 +48,9 @@ int main(int argc, const char** argv) {
         print_help(std::cout, opts);
         return 0;
     }
+
+    crossbow::allocator::init();
+
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString("DEBUG");
     tell::store::ClientConfig config;
     config.commitManager = config.parseCommitManager(commitManager);
