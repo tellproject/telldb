@@ -20,6 +20,9 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
+
+#undef NDEBUG
+
 #include <telldb/TellDB.hpp>
 #include <telldb/Transaction.hpp>
 
