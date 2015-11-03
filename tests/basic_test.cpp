@@ -103,4 +103,50 @@ int main(int argc, const char** argv) {
         auto fiber = clientManager.startTransaction(transaction);
         fiber.wait();
     }
+    // Test range queries
+    {
+        auto transaction = [](tell::db::Transaction& tx) {
+            tell::store::Schema schema(tell::store::TableType::TRANSACTIONAL);
+            schema.addField(tell::store::FieldType::INT, "field", true);
+            schema.addIndex("idx", std::make_pair(true, std::vector<tell::store::Schema::id_t>{schema.idOf("field")}));
+            auto tid = tx.createTable("idx_table", schema);
+            for (int32_t i = 0; i < 1000; ++i) {
+                tx.insert(tid, tell::db::key_t{uint64_t(i)},
+                        {{
+                        {"field", i}
+                        }});
+            }
+            int32_t currKey = 132;
+            auto iter = tx.lower_bound(tid, "idx", {tell::db::Field(currKey)});
+            for (int i = 0; i < 200; ++i) {
+                LOG_ASSERT(!iter.done(), "ERROR: Should not be out of range");
+                auto k = boost::any_cast<int32_t>(iter.key()[0].value());
+                LOG_ASSERT(k == currKey, "range broken");
+                LOG_ASSERT(uint32_t(k) == iter.value().value, "Index does not point to correct value");
+                iter.next();
+                ++currKey;
+            }
+            tx.commit();
+        };
+        auto fiber = clientManager.startTransaction(transaction);
+        fiber.wait();
+    }
+    {
+        auto transaction = [](tell::db::Transaction& tx) {
+            auto tid = tx.openTable("idx_table").get();
+            int32_t currKey = 132;
+            auto iter = tx.lower_bound(tid, "idx", {tell::db::Field(currKey)});
+            for (int i = 0; i < 200; ++i) {
+                LOG_ASSERT(!iter.done(), "ERROR: Should not be out of range");
+                auto k = boost::any_cast<int32_t>(iter.key()[0].value());
+                LOG_ASSERT(k == currKey, "range broken");
+                LOG_ASSERT(uint32_t(k) == iter.value().value, "Index does not point to correct value");
+                iter.next();
+                ++currKey;
+            }
+            tx.commit();
+        };
+        auto fiber = clientManager.startTransaction(transaction);
+        fiber.wait();
+    }
 }
