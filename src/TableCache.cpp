@@ -131,7 +131,7 @@ void TableCache::update(key_t key, const Tuple& from, const Tuple& to) {
     {
         auto i = mCache.find(key);
         if (i != mCache.end()) {
-            if (i->second.second) {
+            if (!i->second.second) {
                 throw Conflict(key);
             }
         } 
@@ -164,7 +164,7 @@ void TableCache::remove(key_t key, const Tuple& tuple) {
     {
         auto i = mCache.find(key);
         if (i != mCache.end()) {
-            if (i->second.second) {
+            if (!i->second.second) {
                 throw Conflict(key);
             }
         } 
