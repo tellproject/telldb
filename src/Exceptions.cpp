@@ -52,6 +52,15 @@ const char* FieldNotSet::what() const noexcept {
     return mMsg.c_str();
 }
 
+// WrongFieldType
+WrongFieldType::WrongFieldType(const crossbow::string& name)
+    : mMsg("Actual type for " + name + " does not match the schema")
+{}
+WrongFieldType::~WrongFieldType() = default;
+const char* WrongFieldType::what() const noexcept {
+    return mMsg.c_str();
+}
+
 // KeyException
 key_t KeyException::key() const noexcept {
     return mKey;

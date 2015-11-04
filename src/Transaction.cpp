@@ -127,31 +127,29 @@ void Transaction::insert(table_t table, key_t key, const std::unordered_map<cros
     Schema::id_t i = 0;
     auto numFixedSize = schema.fixedSizeFields().size();
     const auto& fixedSizeFields = schema.fixedSizeFields();
-    for (; i < numFixedSize; ++i) {
-        const auto& field = fixedSizeFields[i];
+
+    auto setField = [&tuple, &values] (Schema::id_t idx, const store::Field& field) {
         auto iter = values.find(field.name());
-        if (iter == values.end()) {
+        if (iter == values.end() || iter->second.type() == store::FieldType::NULLTYPE) {
             if (field.isNotNull()) {
                 throw FieldNotSet(field.name());
             }
-            tuple[i] = nullptr;
+            tuple[idx] = nullptr;
         } else {
-            tuple[i] = iter->second;
+            if (field.type() != iter->second.type()) {
+                throw WrongFieldType(field.name());
+            }
+            tuple[idx] = iter->second;
         }
+    };
+
+    for (; i < numFixedSize; ++i) {
+        setField(i, fixedSizeFields[i]);
     }
     const auto& varSizeFields = schema.varSizeFields();
     auto numVarSize = schema.varSizeFields().size();
     for (; i < numVarSize + numFixedSize; ++i) {
-        const auto& field = varSizeFields[i - numFixedSize];
-        auto iter = values.find(field.name());
-        if (iter == values.end()) {
-            if (field.isNotNull()) {
-                throw FieldNotSet(field.name());
-            }
-            tuple[i] = nullptr;
-        } else {
-            tuple[i] = iter->second;
-        }
+        setField(i, varSizeFields[i - numFixedSize]);
     }
     mCache->insert(table, key, tuple);
 }

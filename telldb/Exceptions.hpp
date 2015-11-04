@@ -50,7 +50,15 @@ public:
     virtual ~FieldNotSet();
     const char* what() const noexcept override ;
 };
- 
+
+class WrongFieldType : public Exception {
+    crossbow::string mMsg;
+public:
+    WrongFieldType(const crossbow::string& fieldName);
+    virtual ~WrongFieldType();
+    const char* what() const noexcept override ;
+};
+
 class KeyException : public Exception {
     key_t mKey;
     crossbow::string mMsg;
