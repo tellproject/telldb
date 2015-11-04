@@ -223,35 +223,35 @@ size_t Field::serialize(char* dest) const {
     case FieldType::SMALLINT:
         {
             int16_t v = boost::any_cast<int16_t>(mValue);
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int16_t) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::INT:
         {
             int32_t v = boost::any_cast<int32_t>(mValue);
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int32_t) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::BIGINT:
         {
             int64_t v = boost::any_cast<int64_t>(mValue);
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int64_t) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::FLOAT:
         {
             float v = boost::any_cast<float>(mValue);
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(float) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
     case FieldType::DOUBLE:
         {
             double v = boost::any_cast<double>(mValue);
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(v) == 0u, "Pointer to field must be aligned");
+            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(double) == 0u, "Pointer to field must be aligned");
             memcpy(dest, &v, sizeof(v));
             return sizeof(v);
         }
