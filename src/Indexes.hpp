@@ -293,14 +293,15 @@ public:
             return mValueOf(*mapIter);
         }
         virtual void next() override {
+            this->forward();
             while (this->mapIter != this->mapEnd) {
-                this->forward();
                 auto v = this->validTo();
                 if (v < this->mSnapshot.lowestActiveVersion()) {
                     this->cleaner->add(mKeyOf.mapKey(*this->mapIter));
                 } else if (v == std::numeric_limits<uint64_t>::max() || !this->mSnapshot.inReadSet(v)) {
                     break;
                 }
+                this->forward();
             }
         }
     protected:
