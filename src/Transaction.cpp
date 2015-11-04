@@ -212,10 +212,13 @@ void Transaction::writeBack(bool withIndexes) {
     if (mCommitted) {
         throw std::logic_error("Transaction has already committed");
     }
-    auto undoLog = mCache->undoLog(withIndexes);
-    if (undoLog.first != 0 && mType != store::TransactionType::READ_WRITE) {
+    if (!mCache->hasChanges()) {
+        return;
+    }
+    if (mType != store::TransactionType::READ_WRITE) {
         throw std::logic_error("Transaction is read only");
     }
+    auto undoLog = mCache->undoLog(withIndexes);
     writeUndoLog(undoLog);
     mCache->writeBack();
     if (withIndexes) {

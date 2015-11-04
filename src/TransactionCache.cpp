@@ -181,6 +181,15 @@ void TransactionCache::writeIndexes() {
     }
 }
 
+bool TransactionCache::hasChanges() const {
+    for (const auto& t : mTables) {
+        if (t.second->changes().size() != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 template<class A>
 void TransactionCache::applyForLog(A& ar, bool withIndexes) const {
     for (const auto& t : mTables) {

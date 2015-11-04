@@ -68,6 +68,7 @@ public:
     void rollback();
 public: // Helpers
     const store::Record& record(table_t table) const;
+    bool hasChanges() const;
     template<class A>
     void applyForLog(A& ar, bool withIndexes) const;
 private:
