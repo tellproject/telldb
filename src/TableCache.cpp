@@ -95,7 +95,7 @@ Iterator TableCache::lower_bound(const crossbow::string& name, const KeyType& ke
 }
 
 Iterator TableCache::reverse_lower_bound(const crossbow::string& name, const KeyType& key) {
-    return mIndexes.at(name).lower_bound(key);
+    return mIndexes.at(name).reverse_lower_bound(key);
 }
 
 void TableCache::insert(key_t key, const Tuple& tuple) {

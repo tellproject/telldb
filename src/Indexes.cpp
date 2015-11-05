@@ -144,7 +144,7 @@ auto UniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
 
 auto UniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
     auto end = mMap.end();
-    auto iter = mMap.find(std::make_tuple(key, 0));
+    auto iter = mMap.find(std::make_tuple(key, std::numeric_limits<uint64_t>::max()));
     while (iter != end && std::get<0>(iter->first) > key) {
         --iter;
     }
@@ -181,7 +181,7 @@ auto NonUniqueBdTree::lower_bound(const KeyType& key) -> Iterator {
 
 auto NonUniqueBdTree::reverse_lower_bound(const KeyType& key) -> Iterator {
     auto end = mMap.end();
-    auto iter = mMap.find(std::make_tuple(key, 0, key_t{0}));
+    auto iter = mMap.find(std::make_tuple(key, std::numeric_limits<uint64_t>::max(), key_t{std::numeric_limits<uint64_t>::max()}));
     while (iter != end && std::get<0>(*iter) > key) {
         --iter;
     }
