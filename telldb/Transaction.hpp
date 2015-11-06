@@ -200,6 +200,7 @@ public: // table operation
      * table id.
      */
     Future<table_t> openTable(const crossbow::string& name);
+    const tell::store::Schema& getSchema(table_t table);
     /**
      * @brief Creates a new table with the given schema.
      *
