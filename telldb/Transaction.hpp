@@ -358,6 +358,12 @@ public: // non-commands
      * to memory errors.
      */
     crossbow::ChunkMemoryPool& pool();
+    const tell::commitmanager::SnapshotDescriptor& snapshot() const {
+        return *mSnapshot;
+    }
+    tell::store::ClientHandle& getHandle() {
+        return mHandle;
+    }
 };
 
 template<id_t id, class... T>
