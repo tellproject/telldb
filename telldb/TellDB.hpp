@@ -199,6 +199,7 @@ class ClientManager {
 private:
     tell::store::ClientManager<impl::FiberContext<Context>> mClientManager;
     impl::ClientTable mClientTable;
+    std::unique_ptr<store::ScanMemoryManager> mScanMemoryManager;
 public:
     /**
      * @brief Constructor
@@ -263,6 +264,33 @@ public:
     }
 
     /**
+     * @brief allocates scan memomry. Be cautious with this call as it is extremely expensive!
+     *
+     * A typcial use of this function would be to allocate as many chunks as there are
+     * connections to tellstore nodes times the number of scans that could possibly be
+     * processed in parallel plus some extra buffer.
+     *
+     * @param chunkCount
+     * @param chunkLength
+     */
+    void allocateScanMemory(size_t chunkCount, size_t chunkLength) {
+        mScanMemoryManager = mClientManager.allocateScanMemory(chunkCount, chunkLength);
+    }
+
+    /**
+     * @brief returns a reference to the scanMemoryManager, which must be initialized first!
+     *
+     * Initialization works with a call to callocateScanMemory().
+     *
+     * @return
+     */
+    store::ScanMemoryManager *getScanMemoryManager() {
+        return mScanMemoryManager.get();
+    }
+
+
+
+    /**
      * @brief Shutdown everything
      *
      * This functions has to get called before the client application quits. After
@@ -271,10 +299,6 @@ public:
      */
     void shutdown() {
         mClientManager->shutdown();
-    }
-
-    std::unique_ptr<store::ScanMemoryManager> allocateScanMemory(size_t chunkCount, size_t chunkLength) {
-        return mClientManager.allocateScanMemory(chunkCount, chunkLength);
     }
 };
 
