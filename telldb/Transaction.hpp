@@ -200,6 +200,7 @@ public: // table operation
      * table id.
      */
     Future<table_t> openTable(const crossbow::string& name);
+    const tell::store::Schema& getSchema(table_t table);
     /**
      * @brief Creates a new table with the given schema.
      *
@@ -358,6 +359,12 @@ public: // non-commands
      * to memory errors.
      */
     crossbow::ChunkMemoryPool& pool();
+    const tell::commitmanager::SnapshotDescriptor& snapshot() const {
+        return *mSnapshot;
+    }
+    tell::store::ClientHandle& getHandle() {
+        return mHandle;
+    }
 };
 
 template<id_t id, class... T>

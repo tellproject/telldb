@@ -85,6 +85,10 @@ table_t Transaction::createTable(const crossbow::string& name, const store::Sche
     return mCache->createTable(name, schema);
 }
 
+const tell::store::Schema& Transaction::getSchema(table_t table) {
+    return mContext.tables[table]->record().schema();
+}
+
 crossbow::string globalCounterName(const crossbow::string& name) {
     return "__global_counter_" + name;
 }
