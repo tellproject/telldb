@@ -189,15 +189,19 @@ void Transaction::rollback() {
 void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
     uint64_t key = mSnapshot->version() << 16;
     if (log.first > 1024) {
+        if ((log.first / 1024) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
+            throw std::runtime_error("Undo Log is too large");
+        }
         size_t sizeWritten = 0;
         std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
-        responses.reserve(log.first / 1024);
+        responses.reserve((log.first / 1024) + 1);
         for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
-            key = ((key >> 16) << 16) | chunkNum;
+            auto chunkKey = (key | chunkNum);
             auto toWrite = std::min(log.first - sizeWritten, size_t(1024));
-            responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), key, 0, {
-                        std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), toWrite))
-                        }));
+            responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), chunkKey, 0, {
+                        std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second) + sizeWritten,
+                                toWrite))
+                    }));
             sizeWritten += toWrite;
         }
         for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
