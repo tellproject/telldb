@@ -272,6 +272,10 @@ public:
     void shutdown() {
         mClientManager->shutdown();
     }
+
+    std::unique_ptr<store::ScanMemoryManager> allocateScanMemory(size_t chunkCount, size_t chunkLength) {
+        return mClientManager.allocateScanMemory(chunkCount, chunkLength);
+    }
 };
 
 } // namespace db
