@@ -151,13 +151,14 @@ void TableCache::remove(key_t key, const Tuple& tuple) {
         if (i != mChanges.end()) {
             if (std::get<1>(i->second) == Operation::Delete) {
                 throw TupleDoesNotExist(key);
-            } else if (std::get<1>(i->second)== Operation::Insert) {
-                mChanges.erase(i);
-                goto END;
             }
             delete std::get<0>(i->second);
-            std::get<0>(i->second) = nullptr;
-            std::get<1>(i->second) = Operation::Delete;
+            if (std::get<1>(i->second) == Operation::Insert) {
+                mChanges.erase(i);
+            } else {
+                std::get<0>(i->second) = nullptr;
+                std::get<1>(i->second) = Operation::Delete;
+            }
             goto END;
         }
     }
