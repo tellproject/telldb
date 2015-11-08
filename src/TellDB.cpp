@@ -52,10 +52,11 @@ void ClientTable::init(store::ClientHandle& handle) {
     std::random_device rd;
     std::uniform_int_distribution<uint64_t> dist;
     store::Schema schema(store::TableType::NON_TRANSACTIONAL);
+    schema.addField(store::FieldType::BLOB, "value", true);
+
     auto clientsTableResp = handle.getTable("__clients");
     if (clientsTableResp->error()) {
         // table does not yet exist
-        schema.addField(store::FieldType::BLOB, "value", true);
         mClientsTable.reset(new store::Table(handle.createTable("__clients", schema)));
     } else {
         mClientsTable.reset(new store::Table(clientsTableResp->get()));
