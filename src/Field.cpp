@@ -127,6 +127,7 @@ Field& Field::operator-= (const Field& rhs) {
         return *this;
     case FieldType::INT:
         boost::any_cast<int32_t&>(mValue) -= boost::any_cast<int32_t>(rhs.mValue);
+        return *this;
     case FieldType::BIGINT:
         boost::any_cast<int64_t&>(mValue) -= boost::any_cast<int64_t>(rhs.mValue);
         return *this;
