@@ -253,6 +253,7 @@ auto IndexWrapper::reverse_lower_bound(const KeyType& key) -> tell::db::Iterator
 }
 
 void IndexWrapper::writeBack() {
+    crossbow::allocator _;
     for (auto& op : mCache) {
         bool res;
         if (std::get<2>(op.second)) continue;
@@ -272,6 +273,7 @@ void IndexWrapper::writeBack() {
 }
 
 void IndexWrapper::undo() {
+    crossbow::allocator _;
     for (auto& op : mCache) {
         if (!std::get<2>(op.second)) continue;
         switch (std::get<0>(op.second)) {

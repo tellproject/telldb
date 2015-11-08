@@ -31,6 +31,8 @@
 #include <telldb/Iterator.hpp>
 #include <commitmanager/SnapshotDescriptor.hpp>
 
+#include <crossbow/allocator.hpp>
+
 #include <map>
 #include <limits>
 
@@ -258,6 +260,7 @@ public:
         using Direction = IteratorDirection;
     protected:
         const commitmanager::SnapshotDescriptor& mSnapshot;
+        crossbow::allocator mAllocator;
         KeyOf<Map> mKeyOf;
         ValueOf<Map> mValueOf;
         ValidTo<Map> mValidTo;
