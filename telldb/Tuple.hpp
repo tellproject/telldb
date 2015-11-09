@@ -96,6 +96,9 @@ public: // Access
         mRecord.idOf(name, id);
         return this->at(id);
     }
+    const id_t count() const {
+        return mFields.size();
+    }
 public:
     size_t size() const override;
     void serialize(char* dest) const override;
