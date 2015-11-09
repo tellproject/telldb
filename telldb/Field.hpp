@@ -53,6 +53,7 @@ public:
         : mType(t)
         , mValue(v)
     {}
+
     Field(int16_t value)
         : Field(store::FieldType::SMALLINT, value)
     {}
@@ -112,6 +113,11 @@ public:
     Field operator- (const Field& rhs) const;
     Field& operator+= (const Field& rhs);
     Field& operator-= (const Field& rhs);
+
+    //Convenience Funtions that prevent the need to create unnecessary fields
+    bool operator<= (const boost::any rhs);
+    bool operator>= (const boost::any rhs);
+
 public:
     /**
      * @brief Cast to another type

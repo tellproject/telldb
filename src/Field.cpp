@@ -145,6 +145,54 @@ Field& Field::operator-= (const Field& rhs) {
     throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
 }
 
+bool Field::operator<=(const boost::any rhs)
+{
+    switch (mType) {
+    case FieldType::NULLTYPE:
+    case FieldType::NOTYPE:
+        throw std::invalid_argument("Cannot compare nullptr or no type!");
+    case FieldType::SMALLINT:
+        return boost::any_cast<int16_t&>(mValue) <= boost::any_cast<int16_t>(rhs);
+    case FieldType::INT:
+        return boost::any_cast<int32_t&>(mValue) <= boost::any_cast<int32_t>(rhs);
+    case FieldType::BIGINT:
+        return boost::any_cast<int64_t&>(mValue) <= boost::any_cast<int64_t>(rhs);
+    case FieldType::FLOAT:
+        return boost::any_cast<float>(mValue) <= boost::any_cast<float>(rhs);
+    case FieldType::DOUBLE:
+        return boost::any_cast<double>(mValue) <= boost::any_cast<double>(rhs);
+    case FieldType::TEXT:
+    case FieldType::BLOB:
+        throw std::invalid_argument("Can not compare on TEXT or BLOB");
+    }
+    assert(false);
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
+}
+
+bool Field::operator>=(const boost::any rhs)
+{
+    switch (mType) {
+    case FieldType::NULLTYPE:
+    case FieldType::NOTYPE:
+        throw std::invalid_argument("Cannot compare nullptr or no type!");
+    case FieldType::SMALLINT:
+        return boost::any_cast<int16_t&>(mValue) >= boost::any_cast<int16_t>(rhs);
+    case FieldType::INT:
+        return boost::any_cast<int32_t&>(mValue) >= boost::any_cast<int32_t>(rhs);
+    case FieldType::BIGINT:
+        return boost::any_cast<int64_t&>(mValue) >= boost::any_cast<int64_t>(rhs);
+    case FieldType::FLOAT:
+        return boost::any_cast<float>(mValue) >= boost::any_cast<float>(rhs);
+    case FieldType::DOUBLE:
+        return boost::any_cast<double>(mValue) >= boost::any_cast<double>(rhs);
+    case FieldType::TEXT:
+    case FieldType::BLOB:
+        throw std::invalid_argument("Can not compare on TEXT or BLOB");
+    }
+    assert(false);
+    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
+}
+
 Field Field::operator+(const Field& rhs) const {
     Field res = *this;
     res += rhs;
