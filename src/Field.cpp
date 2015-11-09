@@ -43,21 +43,17 @@ bool Field::operator< (const Field& rhs) const {
     case FieldType::NOTYPE:
         throw std::invalid_argument("Can not compare fields without types");
     case FieldType::SMALLINT:
-        return boost::any_cast<int16_t>(mValue) < boost::any_cast<int16_t>(rhs.mValue);
+        return smallint < rhs.smallint;
     case FieldType::INT:
-        return boost::any_cast<int32_t>(mValue) < boost::any_cast<int32_t>(rhs.mValue);
+        return normalint < rhs.normalint;
     case FieldType::BIGINT:
-        return boost::any_cast<int64_t>(mValue) < boost::any_cast<int64_t>(rhs.mValue);
+        return bigint < rhs.bigint;
     case FieldType::FLOAT:
-        return boost::any_cast<float>(mValue) < boost::any_cast<float>(rhs.mValue);
+        return floatNr < rhs.floatNr;
     case FieldType::DOUBLE:
-        return boost::any_cast<double>(mValue) < boost::any_cast<double>(rhs.mValue);
+        return doubleNr < rhs.doubleNr;
     case FieldType::TEXT:
-        {
-            const crossbow::string& l = boost::any_cast<const crossbow::string&>(mValue);
-            const crossbow::string& r = boost::any_cast<const crossbow::string&>(rhs.mValue);
-            return l < r;
-        }
+        return str < rhs.str;
     case FieldType::BLOB:
         throw std::invalid_argument("Can not compare BLOBs");
     }
@@ -91,21 +87,23 @@ Field& Field::operator+= (const Field& rhs) {
     case FieldType::NOTYPE:
         throw std::invalid_argument("Can not compare fields without types");
     case FieldType::SMALLINT:
-        boost::any_cast<int16_t&>(mValue) += boost::any_cast<int16_t>(rhs.mValue);
+        smallint += rhs.smallint;
         return *this;
     case FieldType::INT:
-        boost::any_cast<int32_t&>(mValue) += boost::any_cast<int32_t>(rhs.mValue);
+        normalint += rhs.normalint;
         return *this;
     case FieldType::BIGINT:
-        boost::any_cast<int64_t&>(mValue) += boost::any_cast<int64_t>(rhs.mValue);
+        bigint += rhs.bigint;
         return *this;
     case FieldType::FLOAT:
-        boost::any_cast<float&>(mValue) += boost::any_cast<float>(rhs.mValue);
+        floatNr += rhs.floatNr;
         return *this;
     case FieldType::DOUBLE:
-        boost::any_cast<double&>(mValue) += boost::any_cast<double>(rhs.mValue);
+        doubleNr += rhs.doubleNr;
         return *this;
     case FieldType::TEXT:
+        str += rhs.str;
+        return *this;
     case FieldType::BLOB:
         throw std::invalid_argument("Can not calc minus on TEXT or BLOB");
     }
@@ -123,19 +121,19 @@ Field& Field::operator-= (const Field& rhs) {
     case FieldType::NOTYPE:
         throw std::invalid_argument("Can not compare fields without types");
     case FieldType::SMALLINT:
-        boost::any_cast<int16_t&>(mValue) -= boost::any_cast<int16_t>(rhs.mValue);
+        smallint -= rhs.smallint;
         return *this;
     case FieldType::INT:
-        boost::any_cast<int32_t&>(mValue) -= boost::any_cast<int32_t>(rhs.mValue);
+        normalint -= rhs.normalint;
         return *this;
     case FieldType::BIGINT:
-        boost::any_cast<int64_t&>(mValue) -= boost::any_cast<int64_t>(rhs.mValue);
+        bigint -= rhs.normalint;
         return *this;
     case FieldType::FLOAT:
-        boost::any_cast<float&>(mValue) -= boost::any_cast<float>(rhs.mValue);
+        floatNr -= rhs.floatNr;
         return *this;
     case FieldType::DOUBLE:
-        boost::any_cast<double&>(mValue) -= boost::any_cast<double>(rhs.mValue);
+        doubleNr -= rhs.doubleNr;
         return *this;
     case FieldType::TEXT:
     case FieldType::BLOB:
@@ -157,52 +155,6 @@ Field Field::operator-(const Field& rhs) const {
     return res;
 }
 
-template<class T>
-boost::any castTo(const T& value, FieldType target) {
-    switch (target) {
-    case FieldType::NULLTYPE:
-    case FieldType::NOTYPE:
-    case FieldType::BLOB:
-        throw std::bad_cast();
-    case FieldType::SMALLINT:
-        return boost::lexical_cast<int16_t>(value);
-    case FieldType::INT:
-        return boost::lexical_cast<int32_t>(value);
-    case FieldType::BIGINT:
-        return boost::lexical_cast<int64_t>(value);
-    case FieldType::FLOAT:
-        return boost::lexical_cast<float>(value);
-    case FieldType::DOUBLE:
-        return boost::lexical_cast<double>(value);
-    case FieldType::TEXT:
-        return boost::lexical_cast<crossbow::string>(value);
-    }
-    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
-}
-
-Field Field::cast(tell::store::FieldType t) {
-    if (t == mType) return *this;
-    switch (mType) {
-    case FieldType::NULLTYPE:
-    case FieldType::NOTYPE:
-    case FieldType::BLOB:
-        throw std::bad_cast();
-    case FieldType::SMALLINT:
-        return Field(t, castTo(boost::any_cast<int16_t>(mValue), t));
-    case FieldType::INT:
-        return Field(t, castTo(boost::any_cast<int32_t>(mValue), t));
-    case FieldType::BIGINT:
-        return Field(t, castTo(boost::any_cast<int64_t>(mValue), t));
-    case FieldType::FLOAT:
-        return Field(t, castTo(boost::any_cast<float>(mValue), t));
-    case FieldType::DOUBLE:
-        return Field(t, castTo(boost::any_cast<double>(mValue), t));
-    case FieldType::TEXT:
-        return Field(t, castTo(boost::any_cast<crossbow::string>(mValue), t));
-    }
-    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
-}
-
 size_t Field::serialize(char* dest) const {
     switch (mType) {
     case FieldType::NULLTYPE:
@@ -212,49 +164,43 @@ size_t Field::serialize(char* dest) const {
     case FieldType::BLOB:
     case FieldType::TEXT:
         {
-            const auto& v = boost::any_cast<const crossbow::string&>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % 4u == 0u,
                     "Pointer to variable sized field must be 4 byte aligned");
-            int32_t sz = v.size();
+            int32_t sz = str.size();
             memcpy(dest, &sz, sizeof(sz));
-            memcpy(dest + sizeof(sz), v.data(), v.size());
-            auto res = sizeof(sz) + v.size();
+            memcpy(dest + sizeof(sz), str.data(), str.size());
+            auto res = sizeof(sz) + str.size();
             return res;
         }
     case FieldType::SMALLINT:
         {
-            int16_t v = boost::any_cast<int16_t>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int16_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &v, sizeof(v));
-            return sizeof(v);
+            memcpy(dest, &smallint, sizeof(smallint));
+            return sizeof(smallint);
         }
     case FieldType::INT:
         {
-            int32_t v = boost::any_cast<int32_t>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int32_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &v, sizeof(v));
-            return sizeof(v);
+            memcpy(dest, &normalint, sizeof(normalint));
+            return sizeof(normalint);
         }
     case FieldType::BIGINT:
         {
-            int64_t v = boost::any_cast<int64_t>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int64_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &v, sizeof(v));
-            return sizeof(v);
+            memcpy(dest, &bigint, sizeof(bigint));
+            return sizeof(bigint);
         }
     case FieldType::FLOAT:
         {
-            float v = boost::any_cast<float>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(float) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &v, sizeof(v));
-            return sizeof(v);
+            memcpy(dest, &floatNr, sizeof(floatNr));
+            return sizeof(floatNr);
         }
     case FieldType::DOUBLE:
         {
-            double v = boost::any_cast<double>(mValue);
             LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(double) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &v, sizeof(v));
-            return sizeof(v);
+            memcpy(dest, &doubleNr, sizeof(doubleNr));
+            return sizeof(doubleNr);
         }
     }
     throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");

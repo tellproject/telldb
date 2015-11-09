@@ -24,7 +24,6 @@
 #include <tellstore/StdTypes.hpp>
 
 #include <crossbow/string.hpp>
-#include <boost/any.hpp>
 #include <cstdint>
 
 namespace tell {
@@ -46,60 +45,110 @@ namespace db {
 class Field {
     friend class Tuple;
     store::FieldType mType;
-    boost::any mValue;
+    union {
+        crossbow::string str;
+        int16_t smallint;
+        int32_t normalint;
+        int64_t bigint;
+        float floatNr;
+        double doubleNr;
+    };
 public:
-    Field() : mType(store::FieldType::NULLTYPE), mValue(nullptr) {}
-    Field(store::FieldType t, boost::any v)
-        : mType(t)
-        , mValue(v)
-    {}
+    Field() : mType(store::FieldType::NULLTYPE) {}
     Field(int16_t value)
-        : Field(store::FieldType::SMALLINT, value)
+        : mType(store::FieldType::SMALLINT)
+        , smallint(value)
     {}
     Field(int32_t value)
-        : Field(store::FieldType::INT, value)
+        : mType(store::FieldType::INT)
+        , normalint(value)
     {}
     Field(int64_t value)
-        : Field(store::FieldType::BIGINT, value)
+        : mType(store::FieldType::BIGINT)
+        , bigint(value)
     {}
     Field(float value)
-        : Field(store::FieldType::FLOAT, value)
+        : mType(store::FieldType::FLOAT)
+        , floatNr(value)
     {}
     Field(double value)
-        : Field(store::FieldType::DOUBLE, value)
+        : mType(store::FieldType::DOUBLE)
+        , doubleNr(value)
     {}
     Field(const crossbow::string& value)
-        : Field(store::FieldType::TEXT, value)
-    {}
+        : mType(store::FieldType::TEXT)
+    {
+        new (&str) crossbow::string(value);
+    }
     Field(std::nullptr_t)
-        : Field(store::FieldType::NULLTYPE, nullptr)
+        : mType(store::FieldType::NULLTYPE)
     {}
-    static Field create(int16_t value) {
-        return Field(store::FieldType::SMALLINT, value);
+    Field(const Field& other)
+        : mType(other.mType)
+    {
+        switch (mType) {
+        case store::FieldType::NULLTYPE:
+        case store::FieldType::NOTYPE:
+            return;
+        case store::FieldType::TEXT:
+        case store::FieldType::BLOB:
+            new (&str) crossbow::string(other.str);
+            return;
+        case store::FieldType::SMALLINT:
+            smallint = other.smallint;
+            return;
+        case store::FieldType::INT:
+            normalint = other.normalint;
+            return;
+        case store::FieldType::BIGINT:
+            bigint = other.bigint;
+            return;
+        case store::FieldType::FLOAT:
+            floatNr = other.floatNr;
+            return;
+        case store::FieldType::DOUBLE:
+            doubleNr = other.doubleNr;
+        }
     }
-    static Field create(int32_t value) {
-        return Field(store::FieldType::INT, value);
+    ~Field() {
+        if (mType == store::FieldType::TEXT || mType == store::FieldType::BLOB) {
+            str.~basic_string();
+        }
     }
-    static Field create(int64_t value) {
-        return Field(store::FieldType::BIGINT, value);
-    }
-    static Field create(float value) {
-        return Field(store::FieldType::FLOAT, value);
-    }
-    static Field create(double value) {
-        return Field(store::FieldType::DOUBLE, value);
-    }
-    static Field create(const crossbow::string& value) {
-        return Field(store::FieldType::TEXT, value);
-    }
-    static Field create(std::nullptr_t) {
-        return Field(store::FieldType::NULLTYPE, boost::any());
-    }
-    static Field createBlob(const crossbow::string& value) {
-        return Field(store::FieldType::BLOB, value);
-    }
-    static Field createNull() {
-        return Field(store::FieldType::NULLTYPE, boost::any());
+    
+    Field& operator= (const Field& other) {
+        if (mType == tell::store::FieldType::TEXT || mType == tell::store::FieldType::BLOB) {
+            if (other.mType == mType) {
+                str = other.str;
+                return *this;
+            }
+            str.~basic_string();
+        }
+        mType = other.mType;
+        switch (mType) {
+        case store::FieldType::NULLTYPE:
+        case store::FieldType::NOTYPE:
+            break;
+        case store::FieldType::TEXT:
+        case store::FieldType::BLOB:
+            new (&str) crossbow::string(other.str);
+            break;
+        case store::FieldType::SMALLINT:
+            smallint = other.smallint;
+            break;
+        case store::FieldType::INT:
+            normalint = other.normalint;
+            break;
+        case store::FieldType::BIGINT:
+            bigint = other.bigint;
+            break;
+        case store::FieldType::FLOAT:
+            floatNr = other.floatNr;
+            break;
+        case store::FieldType::DOUBLE:
+            doubleNr = other.doubleNr;
+        }
+        return *this;
     }
 
 public:
@@ -114,14 +163,6 @@ public:
     Field& operator-= (const Field& rhs);
 public:
     /**
-     * @brief Cast to another type
-     *
-     * Fields are strongly typed. To convert a value to another
-     * type one can use this cast function. This function might
-     * throw std::bad_cast if the cast fails.
-     */
-    Field cast(tell::store::FieldType type);
-    /**
      * @brief Checks whether the field is NULL
      */
     bool null() const {
@@ -133,11 +174,39 @@ public:
     store::FieldType type() const {
         return mType;
     }
-    /**
-     * @brief Return the value of this field.
-     */
-    const boost::any& value() const {
-        return mValue;
+    template<class T>
+    typename std::enable_if<std::is_same<T, int16_t>::value, int16_t&>::type
+    value() {
+        return smallint;
+    }
+    template<class T>
+    typename std::enable_if<std::is_same<T, int32_t>::value, int32_t&>::type
+    value() {
+        return normalint;
+    }
+    template<class T>
+    typename std::enable_if<std::is_same<T, int64_t>::value, int64_t&>::type
+    value() {
+        return bigint;
+    }
+    template<class T>
+    typename std::enable_if<std::is_same<T, float>::value, float&>::type
+    value() {
+        return floatNr;
+    }
+    template<class T>
+    typename std::enable_if<std::is_same<T, double>::value, double&>::type
+    value() {
+        return doubleNr;
+    }
+    template<class T>
+    typename std::enable_if<std::is_same<T, crossbow::string>::value, crossbow::string&>::type
+    value() {
+        return str;
+    }
+    template<class T>
+    const T& value() const {
+        return const_cast<Field*>(this)->value<T>();
     }
 private:
     size_t serialize(char* dest) const;

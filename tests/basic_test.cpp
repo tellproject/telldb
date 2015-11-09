@@ -89,19 +89,19 @@ int main(int argc, const char** argv) {
             }
             for (int i = 0; i < 100; ++i) {
                 auto resp = responses[i].get();
-                auto foo = boost::any_cast<int32_t>(resp.at("foo").value());
+                auto foo = resp.at("foo").value<int32_t>();
                 if (i != foo) {
                     std::cerr << "got " << foo << " for foo instead of " << i << std::endl;
                 }
                 if (i % 5 == 0) {
                     if (!resp.at("bar").null()) {
-                        std::cerr << "got " << boost::any_cast<crossbow::string>(resp.at("bar").value()) << " for bar instead of nullptr\n";
+                        std::cerr << "got " << resp.at("bar").value<crossbow::string>() << " for bar instead of nullptr\n";
                     }
                 } else {
                     if (resp.at("bar").null()) {
                         std::cerr << "bar is not supposed to be null\n";
                     }
-                    auto bar = boost::any_cast<crossbow::string>(resp.at("bar").value());
+                    auto bar = resp.at("bar").value<crossbow::string>();
                     if (bar != "foobar") {
                         std::cerr << "got " << bar << " for bar instead of foobar\n";
                     }
@@ -128,9 +128,9 @@ int main(int argc, const char** argv) {
             auto iter = tx.lower_bound(tid, "idx", {tell::db::Field(currKey)});
             for (int i = 0; i < 200; ++i) {
                 LOG_ASSERT(!iter.done(), "ERROR: Should not be out of range");
-                auto k = boost::any_cast<int32_t>(iter.key()[0].value());
+                auto k = iter.key()[0].value<int32_t>();
                 LOG_ASSERT(k == currKey, "range broken");
-                LOG_ASSERT(uint32_t(k) == iter.value().value, "Index does not point to correct value");
+                LOG_ASSERT(uint64_t(k) == iter.value().value, "Index does not point to correct value");
                 iter.next();
                 ++currKey;
             }
@@ -146,9 +146,9 @@ int main(int argc, const char** argv) {
             auto iter = tx.lower_bound(tid, "idx", {tell::db::Field(currKey)});
             for (int i = 0; i < 200; ++i) {
                 LOG_ASSERT(!iter.done(), "ERROR: Should not be out of range");
-                auto k = boost::any_cast<int32_t>(iter.key()[0].value());
+                auto k = iter.key()[0].value<int32_t>();
                 LOG_ASSERT(k == currKey, "range broken");
-                LOG_ASSERT(uint32_t(k) == iter.value().value, "Index does not point to correct value");
+                LOG_ASSERT(uint64_t(k) == iter.value().value, "Index does not point to correct value");
                 iter.next();
                 ++currKey;
             }

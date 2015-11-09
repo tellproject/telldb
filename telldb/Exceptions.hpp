@@ -25,6 +25,7 @@
 #include "Field.hpp"
 
 #include <exception>
+#include <vector>
 #include <crossbow/string.hpp>
 
 namespace tell {

@@ -50,7 +50,7 @@ struct size_policy<Archiver, tell::db::Field>
             return res + 8;
         case tell::store::FieldType::TEXT:
         case tell::store::FieldType::BLOB:
-            return res + 4 + boost::any_cast<const crossbow::string&>(field.value()).size();
+            return res + 4 + field.value<crossbow::string>().size();
         }
         assert(false);
         throw std::runtime_error("Unreachable code!");
@@ -67,23 +67,23 @@ struct serialize_policy<Archiver, tell::db::Field>
         case tell::store::FieldType::NULLTYPE:
             break;
         case tell::store::FieldType::SMALLINT:
-            ar & boost::any_cast<int16_t>(field.value());
+            ar & field.value<int16_t>();
             break;
         case tell::store::FieldType::INT:
-            ar & boost::any_cast<int32_t>(field.value());
+            ar & field.value<int32_t>();
             break;
         case tell::store::FieldType::BIGINT:
-            ar & boost::any_cast<int64_t>(field.value());
+            ar & field.value<int64_t>();
             break;
         case tell::store::FieldType::FLOAT:
-            ar & boost::any_cast<float>(field.value());
+            ar & field.value<float>();
             break;
         case tell::store::FieldType::DOUBLE:
-            ar & boost::any_cast<double>(field.value());
+            ar & field.value<double>();
             break;
         case tell::store::FieldType::TEXT:
         case tell::store::FieldType::BLOB:
-            ar & boost::any_cast<const crossbow::string&>(field.value());
+            ar & field.value<crossbow::string>();
             break;
         }
         return ar.pos;
@@ -100,41 +100,41 @@ struct deserialize_policy<Archiver, tell::db::Field>
         case tell::store::FieldType::NOTYPE:
             break;
         case tell::store::FieldType::NULLTYPE:
-            field = tell::db::Field::createNull();
+            field = tell::db::Field(nullptr);
             break;
         case tell::store::FieldType::SMALLINT:
             {
                 int16_t value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         case tell::store::FieldType::INT:
             {
                 int32_t value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         case tell::store::FieldType::BIGINT:
             {
                 int64_t value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         case tell::store::FieldType::FLOAT:
             {
                 float value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         case tell::store::FieldType::DOUBLE:
             {
                 double value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         case tell::store::FieldType::TEXT:
@@ -142,7 +142,7 @@ struct deserialize_policy<Archiver, tell::db::Field>
             {
                 crossbow::string value;
                 ar & value;
-                field = tell::db::Field::create(value);
+                field = tell::db::Field(value);
             }
             break;
         }

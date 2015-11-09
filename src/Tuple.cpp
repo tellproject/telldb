@@ -33,7 +33,7 @@ namespace db {
 
 namespace {
 
-boost::any deserialize(tell::store::FieldType type, const char* const data) {
+Field deserialize(tell::store::FieldType type, const char* const data) {
     using namespace tell::store;
     switch (type) {
     case FieldType::NULLTYPE:
@@ -84,9 +84,9 @@ Tuple::Tuple(
         tell::store::FieldType type;
         auto data = record.data(tuple.data(), id_t(i), isNull, &type);
         if (isNull) {
-            mFields.emplace_back(tell::store::FieldType::NULLTYPE, nullptr);
+            mFields.emplace_back(nullptr);
         } else {
-            mFields.emplace_back(type, deserialize(type, data));
+            mFields.emplace_back(deserialize(type, data));
         }
     }
 }
@@ -107,7 +107,7 @@ size_t Tuple::size() const {
         result = crossbow::align(result, 4u);
         result += sizeof(uint32_t);
         if (mFields[i].type() != store::FieldType::NULLTYPE) {
-            const auto& v = boost::any_cast<const crossbow::string&>(mFields[i].value());
+            const auto& v = mFields[i].value<crossbow::string>();
             result += v.size();
         }
     }

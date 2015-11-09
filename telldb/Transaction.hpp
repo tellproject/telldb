@@ -370,7 +370,7 @@ public: // non-commands
 template<id_t id, class... T>
 struct tuple_set {
     static void set(const std::tuple<T...>& tuple, Tuple& t) {
-        t[id] = Field::create(std::get<id>(tuple));
+        t[id] = Field(std::get<id>(tuple));
         tuple_set<id - 1, T...>::set(tuple, t);
     }
 };
@@ -378,7 +378,7 @@ struct tuple_set {
 template<class... T>
 struct tuple_set<0, T...> {
     static void set(const std::tuple<T...>& tuple, Tuple& t) {
-        t[0] = Field::create(std::get<0>(tuple));
+        t[0] = Field(std::get<0>(tuple));
     }
 };
 
