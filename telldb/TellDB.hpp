@@ -126,22 +126,39 @@ private: // construction
     {}
 private: // private access
     template<class Fun>
-    void exec(Fun fun) {
-        mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
-            if (context.mContext.indexes == nullptr) {
-                context.mContext.setIndexes(impl::createIndexes(handle));
-            }
-            try {
-                auto snapshot = handle.startTransaction(mTxType);
-                Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
-                context.executeHandler(fun, transaction);
-            } catch (std::exception& e) {
-                std::cerr << "Exception: " << e.what() << std::endl;
-            } catch (...) {
-                // This should never happen
-                std::cerr << "Got an unknown error" << std::endl;
-            }
-        });
+    void exec(Fun fun, int cpu) {
+        if (cpu < 0)
+            mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
+                if (context.mContext.indexes == nullptr) {
+                    context.mContext.setIndexes(impl::createIndexes(handle));
+                }
+                try {
+                    auto snapshot = handle.startTransaction(mTxType);
+                    Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
+                    context.executeHandler(fun, transaction);
+                } catch (std::exception& e) {
+                    std::cerr << "Exception: " << e.what() << std::endl;
+                } catch (...) {
+                    // This should never happen
+                    std::cerr << "Got an unknown error" << std::endl;
+                }
+            });
+        else 
+            mTxRunner->execute(cpu, [this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
+                if (context.mContext.indexes == nullptr) {
+                    context.mContext.setIndexes(impl::createIndexes(handle));
+                }
+                try {
+                    auto snapshot = handle.startTransaction(mTxType);
+                    Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
+                    context.executeHandler(fun, transaction);
+                } catch (std::exception& e) {
+                    std::cerr << "Exception: " << e.what() << std::endl;
+                } catch (...) {
+                    // This should never happen
+                    std::cerr << "Got an unknown error" << std::endl;
+                }
+            });
     }
 public: // construction
     TransactionFiber(const TransactionFiber&) = delete;
@@ -252,14 +269,16 @@ public:
      *   - Call any blocking operations.
      * In general it should not do anything that will schedule the underlying OS thread. 
      * @endparblock
+     * @param[in] cpu Put fiber on thread cpu
      */
     template<class Fun>
     TransactionFiber<Context> startTransaction(
             Fun& fun,
-            tell::store::TransactionType type = tell::store::TransactionType::READ_WRITE)
+            tell::store::TransactionType type = tell::store::TransactionType::READ_WRITE,
+            int cpu = -1)
     {
         TransactionFiber<Context> fiber(mClientManager, type);
-        fiber.exec(fun);
+        fiber.exec(fun, cpu);
         return fiber;
     }
 
