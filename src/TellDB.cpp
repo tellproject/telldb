@@ -54,12 +54,19 @@ void ClientTable::init(store::ClientHandle& handle) {
     store::Schema schema(store::TableType::NON_TRANSACTIONAL);
     schema.addField(store::FieldType::BLOB, "value", true);
 
-    auto clientsTableResp = handle.getTable("__clients");
-    if (clientsTableResp->error()) {
-        // table does not yet exist
-        mClientsTable.reset(new store::Table(handle.createTable("__clients", schema)));
-    } else {
-        mClientsTable.reset(new store::Table(clientsTableResp->get()));
+    while (true) {
+        auto clientsTableResp = handle.getTable("__clients");
+        if (clientsTableResp->error()) {
+            // table does not yet exist
+            try {
+                mClientsTable.reset(new store::Table(handle.createTable("__clients", schema)));
+            } catch (std::system_error& e) {
+                continue;
+            }
+        } else {
+            mClientsTable.reset(new store::Table(clientsTableResp->get()));
+        }
+        break;
     }
     while (true) {
         // the client id is simply a random number

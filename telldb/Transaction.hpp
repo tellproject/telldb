@@ -338,6 +338,7 @@ public: // finish
 private:
     void writeBack(bool withIndexes = true);
     void writeUndoLog(std::pair<size_t, uint8_t*> log);
+    void removeUndoLog(std::pair<size_t, uint8_t*> log);
     const store::Record& getRecord(table_t tableId) const;
 public: // non-commands
     /**

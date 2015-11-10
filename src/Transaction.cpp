@@ -216,6 +216,31 @@ void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
     }
 }
 
+void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
+    auto key = mSnapshot->version();
+    if (log.first > 1024) {
+        if ((log.first / 1024) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
+            throw std::runtime_error("Undo Log is too large");
+        }
+        size_t sizeWritten = 0;
+        std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
+        responses.reserve((log.first / 1024) + 1);
+        for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
+            auto chunkKey = (key | chunkNum);
+            auto segSize = std::min(log.first - sizeWritten, size_t(1024));
+            responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 0));
+            sizeWritten += segSize;
+        }
+        for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
+            auto resp = *i;
+            LOG_ASSERT(resp->waitForResult(), "Could not delete undo log");
+        }
+    } else {
+        auto resp = mHandle.remove(mContext.clientTable->txTable(), key, 0);
+        LOG_ASSERT(resp->waitForResult(), "Could not delete undo log");
+    }
+}
+
 void Transaction::writeBack(bool withIndexes) {
     if (mCommitted) {
         throw std::logic_error("Transaction has already committed");
@@ -232,6 +257,7 @@ void Transaction::writeBack(bool withIndexes) {
     if (withIndexes) {
         mCache->writeIndexes();
     }
+    removeUndoLog(undoLog);
 }
 
 const store::Record& Transaction::getRecord(table_t table) const {
