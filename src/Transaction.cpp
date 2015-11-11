@@ -205,14 +205,15 @@ void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
             sizeWritten += toWrite;
         }
         for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
-            auto resp = *i;
-            LOG_ASSERT(resp->waitForResult(), "Writeback did not succeed");
+            __attribute__((unused)) auto res = (*i)->waitForResult();
+            LOG_ASSERT(res, "Writeback did not succeed");
         }
     } else {
         auto resp = mHandle.insert(mContext.clientTable->txTable(), key, 0, {
                 std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
                 });
-        LOG_ASSERT(resp->waitForResult(), "Writeback did not succeed");
+        __attribute__((unused)) auto res = resp->waitForResult();
+        LOG_ASSERT(res, "Writeback did not succeed");
     }
 }
 
@@ -228,16 +229,17 @@ void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
         for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
             auto chunkKey = (key | chunkNum);
             auto segSize = std::min(log.first - sizeWritten, size_t(1024));
-            responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 0));
+            responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 1));
             sizeWritten += segSize;
         }
         for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
-            auto resp = *i;
-            LOG_ASSERT(resp->waitForResult(), "Could not delete undo log");
+            __attribute__((unused)) auto res = (*i)->waitForResult();
+            LOG_ASSERT(res, "Could not delete undo log");
         }
     } else {
-        auto resp = mHandle.remove(mContext.clientTable->txTable(), key, 0);
-        LOG_ASSERT(resp->waitForResult(), "Could not delete undo log");
+        auto resp = mHandle.remove(mContext.clientTable->txTable(), key, 1);
+        __attribute__((unused)) auto res = resp->waitForResult();
+        LOG_ASSERT(res, "Could not delete undo log");
     }
 }
 
