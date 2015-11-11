@@ -217,7 +217,7 @@ void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
 }
 
 void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
-    auto key = mSnapshot->version();
+    uint64_t key = mSnapshot->version() << 16;
     if (log.first > 1024) {
         if ((log.first / 1024) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
             throw std::runtime_error("Undo Log is too large");
