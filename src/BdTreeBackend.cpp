@@ -60,8 +60,10 @@ BdTreeNodeData::BdTreeNodeData(store::Table& table, store::Record::id_t id, std:
         throw std::logic_error("Invalid field");
     }
 
-    mSize = *reinterpret_cast<const uint32_t*>(field);
-    mData = field + sizeof(uint32_t);
+    auto offsetData = reinterpret_cast<const uint32_t*>(field);
+    auto offset = offsetData[0];
+    mSize = offsetData[1] - offset;
+    mData = mTuple->data() + offset;
 }
 
 std::unique_ptr<store::Tuple> BdTreeBaseTable::doRead(uint64_t key, std::error_code& ec) {

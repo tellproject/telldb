@@ -208,8 +208,6 @@ public:
     const T& value() const {
         return const_cast<Field*>(this)->value<T>();
     }
-private:
-    size_t serialize(char* dest) const;
 };
 
 } // namespace db

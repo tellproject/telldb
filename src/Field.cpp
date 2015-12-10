@@ -155,57 +155,6 @@ Field Field::operator-(const Field& rhs) const {
     return res;
 }
 
-size_t Field::serialize(char* dest) const {
-    switch (mType) {
-    case FieldType::NULLTYPE:
-        throw std::invalid_argument("Can not serialize a nulltype");
-    case FieldType::NOTYPE:
-        throw std::invalid_argument("Can not serialize a notype");
-    case FieldType::BLOB:
-    case FieldType::TEXT:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % 4u == 0u,
-                    "Pointer to variable sized field must be 4 byte aligned");
-            int32_t sz = str.size();
-            memcpy(dest, &sz, sizeof(sz));
-            memcpy(dest + sizeof(sz), str.data(), str.size());
-            auto res = sizeof(sz) + str.size();
-            return res;
-        }
-    case FieldType::SMALLINT:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int16_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &smallint, sizeof(smallint));
-            return sizeof(smallint);
-        }
-    case FieldType::INT:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int32_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &normalint, sizeof(normalint));
-            return sizeof(normalint);
-        }
-    case FieldType::BIGINT:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(int64_t) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &bigint, sizeof(bigint));
-            return sizeof(bigint);
-        }
-    case FieldType::FLOAT:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(float) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &floatNr, sizeof(floatNr));
-            return sizeof(floatNr);
-        }
-    case FieldType::DOUBLE:
-        {
-            LOG_ASSERT(reinterpret_cast<uintptr_t>(dest) % alignof(double) == 0u, "Pointer to field must be aligned");
-            memcpy(dest, &doubleNr, sizeof(doubleNr));
-            return sizeof(doubleNr);
-        }
-    }
-    throw std::runtime_error("This should be unreachable code - something went horribly wrong!!");
-}
-
 } // namespace db
 } // namespace tell
 
