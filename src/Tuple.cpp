@@ -133,7 +133,7 @@ void Tuple::serialize(char* dest) const {
             if (field.isNotNull()) {
                 throw std::invalid_argument("Invalid null field");
             }
-            mRecord.setFieldNull(dest, i, true);
+            mRecord.setFieldNull(dest, fieldMeta.nullIdx, true);
             if (field.isFixedSized()) {
                 // Write a string of \0 bytes as a default value for fields if the field is null.
                 memset(current, 0, field.staticSize());

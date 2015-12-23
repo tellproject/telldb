@@ -53,7 +53,7 @@ BdTreeNodeData::BdTreeNodeData(store::Table& table, store::Record::id_t id, std:
         : mTuple(std::move(tuple)),
           mSize(0x0u),
           mData(nullptr) {
-    bool isNull;
+    bool isNull = false;
     store::FieldType type;
     auto field = table.record().data(mTuple->data(), id, isNull, &type);
     if (isNull || type != store::FieldType::BLOB) {
