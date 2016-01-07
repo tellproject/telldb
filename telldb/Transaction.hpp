@@ -182,6 +182,7 @@ private:
     // written to the storage
     store::TransactionType mType;
     bool mCommitted = false;
+    bool mNoUndoLog = false;
 public:
     Transaction(tell::store::ClientHandle& handle,
             impl::TellDBContext& context,
@@ -335,6 +336,15 @@ public: // finish
      * @throws Conflict if a conflict gets detected.
      */
     void commit();
+
+    /**
+     * @brief Flush to the storage.
+     *
+     * This is an unsafe operation which should only be used if
+     * the user really understands what she is doing.
+     */
+    void unsafeFlush();
+    void unsafeNoUndoLog();
 private:
     void writeBack(bool withIndexes = true);
     void writeUndoLog(std::pair<size_t, uint8_t*> log);
