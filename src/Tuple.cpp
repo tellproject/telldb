@@ -110,7 +110,7 @@ size_t Tuple::size() const {
             result += v.size();
         }
     }
-    return result;
+    return crossbow::align(result, 8u);
 }
 
 void Tuple::serialize(char* dest) const {
