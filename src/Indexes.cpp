@@ -270,6 +270,7 @@ void IndexWrapper::writeBack() {
         }
         std::get<2>(op.second) = true;
     }
+    mCache.clear();
 }
 
 void IndexWrapper::undo() {
