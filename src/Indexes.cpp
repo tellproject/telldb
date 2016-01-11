@@ -216,10 +216,10 @@ void IndexWrapper::update(key_t key, const Tuple& old, const Tuple& next) {
     auto newKey = keyOf(next);
     if (oldKey != newKey) {
         mCache.emplace(
-                keyOf(old),
+                std::move(oldKey),
                 std::make_tuple(IndexOperation::Delete, key, false));
         mCache.emplace(
-                keyOf(next),
+                std::move(newKey),
                 std::make_tuple(IndexOperation::Insert, key, false));
     }
 }
