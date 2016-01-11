@@ -71,6 +71,7 @@ struct TellDBContext {
     ~TellDBContext();
     void setIndexes(Indexes* idxs);
     std::unordered_map<table_t, tell::store::Table*> tables;
+    std::unordered_map<crossbow::string, CounterImpl*> counters;
     std::unordered_map<crossbow::string, table_t> tableNames;
     std::unique_ptr<Indexes> indexes;
     ClientTable* clientTable;

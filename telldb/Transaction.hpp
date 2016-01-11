@@ -157,7 +157,7 @@ extern template class Future<Tuple>;
 class CounterImpl;
 class Counter {
     friend class Transaction;
-    std::unique_ptr<CounterImpl> impl;
+    CounterImpl* impl;
     store::ClientHandle& mHandle;
     Counter(CounterImpl* impl, store::ClientHandle& handle);
 public:

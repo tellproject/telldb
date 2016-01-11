@@ -63,6 +63,15 @@ uint64_t Counter::next() {
     return impl->next(mHandle);
 }
 
+TellDBContext::~TellDBContext() {
+    for (auto& p : tables) {
+        delete p.second;
+    }
+    for (auto& c : counters) {
+        delete c.second;
+    }
+}
+
 Transaction::Transaction(ClientHandle& handle, TellDBContext& context,
         std::unique_ptr<commitmanager::SnapshotDescriptor> snapshot, TransactionType type)
     : mHandle(handle)
@@ -105,16 +114,22 @@ Counter Transaction::createCounter(const crossbow::string& name) {
 }
 
 Counter Transaction::getCounter(const crossbow::string& name) {
-    auto counterName = globalCounterName(name);
-    auto iter = mContext.tableNames.find(counterName);
-    std::shared_ptr<store::Table> counterTable;
-    if (iter != mContext.tableNames.end()) {
-        counterTable = std::make_shared<store::Table>(*mContext.tables.at(iter->second));
+    auto iter = mContext.counters.find(name);
+    CounterImpl* counterImpl;
+    if (iter != mContext.counters.end()) {
+        counterImpl = iter->second;
     } else {
+        auto counterName = globalCounterName(name);
         auto tId = openTable(counterName).get();
-        counterTable = std::make_shared<store::Table>(*mContext.tables.at(tId));
+        auto table = std::make_shared<store::Table>(*mContext.tables.at(tId));
+        counterImpl = new CounterImpl(RemoteCounter(std::move(table), 1));
+        auto res = mContext.counters.emplace(name, counterImpl);
+        if (!res.second) {
+            delete counterImpl;
+            counterImpl = res.first->second;
+        }
     }
-    return Counter(new CounterImpl(RemoteCounter(counterTable, 1)), mHandle);
+    return Counter(counterImpl, mHandle);
 }
 
 Future<Tuple> Transaction::get(table_t table, key_t key) {

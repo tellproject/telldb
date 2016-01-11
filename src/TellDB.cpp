@@ -37,12 +37,6 @@ TellDBContext::TellDBContext(ClientTable* table)
     : clientTable(table)
 {}
 
-TellDBContext::~TellDBContext() {
-    for (auto& p : tables) {
-        delete p.second;
-    }
-}
-
 void TellDBContext::setIndexes(Indexes* idxs) {
     indexes.reset(idxs);
 }
