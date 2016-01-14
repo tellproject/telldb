@@ -264,24 +264,6 @@ void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
     }
 }
 
-void Transaction::unsafeFlush() {
-    if (mCommitted) {
-        throw std::logic_error("Transaction has already committed");
-    }
-    if (mType != store::TransactionType::READ_WRITE) {
-        throw std::logic_error("Transaction is read only");
-    }
-    auto undoLog = mCache->undoLog(true);
-    writeUndoLog(undoLog);
-    mCache->writeBack();
-    mCache->writeIndexes();
-    removeUndoLog(undoLog);
-}
-
-void Transaction::unsafeNoUndoLog() {
-    mNoUndoLog = true;
-}
-
 void Transaction::writeBack(bool withIndexes) {
     if (mCommitted) {
         throw std::logic_error("Transaction has already committed");
@@ -292,11 +274,8 @@ void Transaction::writeBack(bool withIndexes) {
     if (mType != store::TransactionType::READ_WRITE) {
         throw std::logic_error("Transaction is read only");
     }
-    std::pair<size_t, uint8_t*> undoLog;
-    if (!mNoUndoLog) {
-        undoLog = mCache->undoLog(withIndexes);
-        writeUndoLog(undoLog);
-    }
+    auto undoLog = mCache->undoLog(withIndexes);
+    writeUndoLog(undoLog);
     mCache->writeBack();
     if (withIndexes) {
         mCache->writeIndexes();
