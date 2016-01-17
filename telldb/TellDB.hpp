@@ -274,12 +274,12 @@ public:
      */
     template<class Fun>
     TransactionFiber<Context> startTransaction(
-            Fun& fun,
+            Fun&& fun,
             tell::store::TransactionType type = tell::store::TransactionType::READ_WRITE,
             int cpu = -1)
     {
         TransactionFiber<Context> fiber(mClientManager, type);
-        fiber.exec(fun, cpu);
+        fiber.exec(std::forward<Fun>(fun), cpu);
         return fiber;
     }
 
