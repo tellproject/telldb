@@ -128,14 +128,15 @@ private: // construction
 private: // private access
     template<class Fun>
     void exec(Fun fun, int cpu) {
+        auto type = mTxType;
         if (cpu < 0)
-            mTxRunner->execute([this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
+            mTxRunner->execute([type, fun](tell::store::ClientHandle& handle, telldb_context& context) {
                 if (context.mContext.indexes == nullptr) {
                     context.mContext.setIndexes(impl::createIndexes(handle));
                 }
                 try {
-                    auto snapshot = handle.startTransaction(mTxType);
-                    Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
+                    auto snapshot = handle.startTransaction(type);
+                    Transaction transaction(handle, context.mContext, std::move(snapshot), type);
                     context.executeHandler(fun, transaction);
                 } catch (std::exception& e) {
                     std::cerr << "Exception: " << e.what() << std::endl;
@@ -145,13 +146,13 @@ private: // private access
                 }
             });
         else 
-            mTxRunner->execute(cpu, [this, fun](tell::store::ClientHandle& handle, telldb_context& context) {
+            mTxRunner->execute(cpu, [type, fun](tell::store::ClientHandle& handle, telldb_context& context) {
                 if (context.mContext.indexes == nullptr) {
                     context.mContext.setIndexes(impl::createIndexes(handle));
                 }
                 try {
-                    auto snapshot = handle.startTransaction(mTxType);
-                    Transaction transaction(handle, context.mContext, std::move(snapshot), mTxType);
+                    auto snapshot = handle.startTransaction(type);
+                    Transaction transaction(handle, context.mContext, std::move(snapshot), type);
                     context.executeHandler(fun, transaction);
                 } catch (std::exception& e) {
                     std::cerr << "Exception: " << e.what() << std::endl;
