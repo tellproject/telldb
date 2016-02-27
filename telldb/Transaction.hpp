@@ -26,6 +26,7 @@
 #include "Iterator.hpp"
 
 #include <tellstore/TransactionType.hpp>
+#include <tellstore/ClientSocket.hpp>
 #include <crossbow/ChunkAllocator.hpp>
 #include <tuple>
 
@@ -165,6 +166,8 @@ public:
     Counter(Counter&&);
     ~Counter();
 };
+
+class ScanQuery;
 
 class Transaction {
 public: // Types
@@ -315,6 +318,12 @@ public: // read-write operations
      * @throws Conflict If a conflict is detected.
      */
     void remove(table_t table, key_t key, const Tuple& tuple);
+    /**
+     * @brief Starts a new scan on the storage
+     *
+     * WARNING: This is currently only supported for analytical queries
+     */
+    std::shared_ptr<store::ScanIterator> scan(const ScanQuery& query, store::ScanMemoryManager& memoryManager);
 public: // finish
     /**
      * @brief Aborts the current transaction

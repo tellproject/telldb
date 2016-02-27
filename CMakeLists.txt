@@ -38,11 +38,13 @@ set(TELLDB_SRCS
     src/RemoteCounter.cpp
     src/RemoteCounter.hpp
     src/TableData.hpp
+    src/ScanQuery.cpp
 )
 
 set(TELLDB_COMMON_HDR
     telldb/TellDB.hpp
     telldb/Transaction.hpp
+    telldb/ScanQuery.hpp
     telldb/Field.hpp
     telldb/Tuple.hpp
     telldb/Types.hpp

@@ -24,6 +24,7 @@
 #include "RemoteCounter.hpp"
 
 #include <telldb/TellDB.hpp>
+#include <telldb/ScanQuery.hpp>
 #include <telldb/Transaction.hpp>
 #include <telldb/Exceptions.hpp>
 #include <tellstore/ClientManager.hpp>
@@ -189,6 +190,22 @@ void Transaction::update(table_t table, key_t key, const Tuple& from, const Tupl
 
 void Transaction::remove(table_t table, key_t key, const Tuple& tuple) {
     mCache->remove(table, key, tuple);
+}
+
+std::shared_ptr<store::ScanIterator> Transaction::scan(const ScanQuery& scanQuery, store::ScanMemoryManager& memoryManager) {
+    if (mType != store::TransactionType::ANALYTICAL) {
+        throw std::runtime_error("Scan only supported for analytical transactions");
+    }
+    uint32_t selectionLength, queryLength;
+    std::unique_ptr<char[]> selection, query;
+    scanQuery.serializeQuery(query, queryLength);
+    scanQuery.serializeSelection(selection, selectionLength);
+    return mHandle.scan(*mContext.tables[scanQuery.table()],
+            *mSnapshot,
+            memoryManager,
+            scanQuery.queryType(),
+            selectionLength, selection.get(),
+            queryLength, query.get());
 }
 
 void Transaction::commit() {
