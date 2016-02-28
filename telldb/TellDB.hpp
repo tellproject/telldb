@@ -299,6 +299,13 @@ public:
     }
 
     /**
+     * @brief Create a new ScanMemoryManager
+     */
+    std::unique_ptr<store::ScanMemoryManager> newScanMemoryManager(size_t chunkCount, size_t chunkSize) {
+        return mClientManager.allocateScanMemory(chunkCount, chunkSize);
+    }
+
+    /**
      * @brief returns a reference to the scanMemoryManager, which must be initialized first!
      *
      * Initialization works with a call to callocateScanMemory().
