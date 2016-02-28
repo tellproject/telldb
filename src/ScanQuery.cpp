@@ -134,7 +134,7 @@ void ScanQuery::serializeSelection(std::unique_ptr<char[]>& result, uint32_t& si
                 break;
             case store::FieldType::FLOAT:
                 w.set(0, 2);
-                w.write(field.value<int32_t>());
+                w.write(field.value<float>());
                 break;
             case store::FieldType::BIGINT:
                 w.set(0, 4);
