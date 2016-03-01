@@ -35,8 +35,23 @@ public: // types
 private:
     PredicateList mPredicates;
 public:
+    Conjunct(Predicate&& predicate) {
+        mPredicates.emplace_back(std::move(predicate));
+    }
+
+    Conjunct(const Predicate& predicate) {
+        mPredicates.push_back(predicate);
+    }
+
     Conjunct& operator|| (const Predicate& predicate) {
         mPredicates.push_back(predicate);
+        return *this;
+    }
+
+    Conjunct& operator|| (const Conjunct& c) {
+        for (auto& p : c.mPredicates) {
+            mPredicates.emplace_back(p);
+        }
         return *this;
     }
 
