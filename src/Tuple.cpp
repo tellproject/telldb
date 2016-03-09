@@ -25,6 +25,7 @@
 #include <tellstore/Table.hpp>
 
 #include <crossbow/alignment.hpp>
+#include <boost/format.hpp>
 
 #include <memory.h>
 
@@ -131,7 +132,7 @@ void Tuple::serialize(char* dest) const {
         auto current = dest + fieldMeta.offset;
         if (value.null()) {
             if (field.isNotNull()) {
-                throw std::invalid_argument("Invalid null field");
+                throw std::invalid_argument((boost::format("Field %1% must not be null") % field.name()).str());
             }
             mRecord.setFieldNull(dest, fieldMeta.nullIdx, true);
             if (field.isFixedSized()) {
@@ -143,7 +144,7 @@ void Tuple::serialize(char* dest) const {
             }
         } else {
             if (value.type() != field.type()) {
-                throw std::invalid_argument("Type does not match");
+                throw std::invalid_argument(boost::str(boost::format("Type for %1% does not match") % field.name()));
             }
             // we just need to copy the value to the correct offset.
             switch (value.type()) {

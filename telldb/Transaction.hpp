@@ -248,6 +248,10 @@ public: // read-write operations
     Iterator lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
     Iterator reverse_lower_bound(table_t tableId, const crossbow::string& idxName, const KeyType& key);
     /**
+     * @brief Create a new empty tuple
+     */
+    Tuple newTuple(table_t table);
+    /**
      * @brief Inserts a new tuple
      *
      * This will insert a new tuple into the storage. In praxis,

@@ -21,6 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include <telldb/ScanQuery.hpp>
+#include <telldb/Exceptions.hpp>
 
 namespace tell {
 namespace db {
@@ -40,6 +41,26 @@ ScanQuery::ScanQuery(table_t table, const std::vector<std::pair<AggregationType,
     , mQueryType(tell::store::ScanQueryType::AGGREGATION)
     , mAggregations(aggregations)
 {}
+
+void ScanQuery::verify(const store::Schema& schema) const {
+    for (auto& c : mConjuncts) {
+        for (auto& p : c.predicates()) {
+            auto& field = schema[std::get<1>(p)];
+            if (field.type() != std::get<2>(p).type()) {
+                throw WrongFieldType(field.name());
+            }
+        }
+    }
+    for (auto& a : mAggregations) {
+        switch (schema[a.second].type()) {
+        case store::FieldType::BLOB:
+        case store::FieldType::TEXT:
+            throw WrongFieldType("Can not aggregate over string and blob types");
+        default:
+            break;
+        }
+    }
+}
 
 void ScanQuery::setPartition(uint16_t keyShift, uint32_t partitionKey, uint32_t partitionValue) {
     mDoPartition = true;

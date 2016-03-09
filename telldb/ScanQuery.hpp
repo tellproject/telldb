@@ -89,6 +89,7 @@ public:
 public: // Access info
     table_t table() const { return mTable; }
     store::ScanQueryType queryType() const { return mQueryType; }
+    void verify(const store::Schema& schema) const;
 private: // Serialization
     void serializeQuery(std::unique_ptr<char[]>& result, uint32_t& size) const;
     void serializeSelection(std::unique_ptr<char[]>& result, uint32_t& size) const;

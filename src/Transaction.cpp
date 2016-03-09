@@ -145,6 +145,12 @@ Iterator Transaction::reverse_lower_bound(table_t tableId, const crossbow::strin
     return mCache->reverse_lower_bound(tableId, idxName, key);
 }
 
+Tuple Transaction::newTuple(table_t table) {
+    const auto& t = mContext.tables.at(table);
+    const auto& rec = t->record();
+    return Tuple(rec, mPool);
+}
+
 void Transaction::insert(table_t table, key_t key, const std::unordered_map<crossbow::string, Field>& values) {
     const auto& t = mContext.tables.at(table);
     const auto& rec = t->record();
@@ -196,6 +202,8 @@ std::shared_ptr<store::ScanIterator> Transaction::scan(const ScanQuery& scanQuer
     if (mType != store::TransactionType::ANALYTICAL) {
         throw std::runtime_error("Scan only supported for analytical transactions");
     }
+    const auto& t = mContext.tables.at(scanQuery.table());
+    scanQuery.verify(t->record().schema());
     uint32_t selectionLength, queryLength;
     std::unique_ptr<char[]> selection, query;
     scanQuery.serializeQuery(query, queryLength);
@@ -210,7 +218,6 @@ std::shared_ptr<store::ScanIterator> Transaction::scan(const ScanQuery& scanQuer
 
 void Transaction::commit() {
     writeBack();
-    // if this succeeds, we can write back the indexes
     mHandle.commit(*mSnapshot);
     mCommitted = true;
 }
