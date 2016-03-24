@@ -232,60 +232,60 @@ void Transaction::rollback() {
 }
 
 void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
-    uint64_t key = mSnapshot->version() << 16;
-    if (log.first > gMaxUndoLogSize) {
-        if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
-            throw std::runtime_error("Undo Log is too large");
-        }
-        size_t sizeWritten = 0;
-        std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
-        responses.reserve((log.first / gMaxUndoLogSize) + 1);
-        for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
-            auto chunkKey = (key | chunkNum);
-            auto toWrite = std::min(log.first - sizeWritten, gMaxUndoLogSize);
-            responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), chunkKey, 0, {
-                        std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second) + sizeWritten,
-                                toWrite))
-                    }));
-            sizeWritten += toWrite;
-        }
-        for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
-            __attribute__((unused)) auto res = (*i)->waitForResult();
-            LOG_ASSERT(res, "Writeback did not succeed");
-        }
-    } else {
-        auto resp = mHandle.insert(mContext.clientTable->txTable(), key, 0, {
-                std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
-                });
-        __attribute__((unused)) auto res = resp->waitForResult();
-        LOG_ASSERT(res, "Writeback did not succeed");
-    }
+    //uint64_t key = mSnapshot->version();
+    //if (log.first > gMaxUndoLogSize) {
+    //    if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
+    //        throw std::runtime_error("Undo Log is too large");
+    //    }
+    //    size_t sizeWritten = 0;
+    //    std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
+    //    responses.reserve((log.first / gMaxUndoLogSize) + 1);
+    //    for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
+    //        auto chunkKey = (key | (chunkNum << 48));
+    //        auto toWrite = std::min(log.first - sizeWritten, gMaxUndoLogSize);
+    //        responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), chunkKey, 0, {
+    //                    std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second) + sizeWritten,
+    //                            toWrite))
+    //                }));
+    //        sizeWritten += toWrite;
+    //    }
+    //    for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
+    //        __attribute__((unused)) auto res = (*i)->waitForResult();
+    //        LOG_ASSERT(res, "Writeback did not succeed");
+    //    }
+    //} else {
+    //    auto resp = mHandle.insert(mContext.clientTable->txTable(), key, 0, {
+    //            std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second), log.first))
+    //            });
+    //    __attribute__((unused)) auto res = resp->waitForResult();
+    //    LOG_ASSERT(res, "Writeback did not succeed");
+    //}
 }
 
 void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
-    uint64_t key = mSnapshot->version() << 16;
-    if (log.first > gMaxUndoLogSize) {
-        if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
-            throw std::runtime_error("Undo Log is too large");
-        }
-        size_t sizeWritten = 0;
-        std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
-        responses.reserve((log.first / gMaxUndoLogSize) + 1);
-        for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
-            auto chunkKey = (key | chunkNum);
-            auto segSize = std::min(log.first - sizeWritten, gMaxUndoLogSize);
-            responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 1));
-            sizeWritten += segSize;
-        }
-        for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
-            __attribute__((unused)) auto res = (*i)->waitForResult();
-            LOG_ASSERT(res, "Could not delete undo log");
-        }
-    } else {
-        auto resp = mHandle.remove(mContext.clientTable->txTable(), key, 1);
-        __attribute__((unused)) auto res = resp->waitForResult();
-        LOG_ASSERT(res, "Could not delete undo log");
-    }
+    //uint64_t key = mSnapshot->version();
+    //if (log.first > gMaxUndoLogSize) {
+    //    if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
+    //        throw std::runtime_error("Undo Log is too large");
+    //    }
+    //    size_t sizeWritten = 0;
+    //    std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
+    //    responses.reserve((log.first / gMaxUndoLogSize) + 1);
+    //    for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
+    //        auto chunkKey = (key | (chunkNum << 48));
+    //        auto segSize = std::min(log.first - sizeWritten, gMaxUndoLogSize);
+    //        responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 1));
+    //        sizeWritten += segSize;
+    //    }
+    //    for (auto i = responses.rbegin(); i != responses.rend(); ++i) {
+    //        __attribute__((unused)) auto res = (*i)->waitForResult();
+    //        LOG_ASSERT(res, "Could not delete undo log");
+    //    }
+    //} else {
+    //    auto resp = mHandle.remove(mContext.clientTable->txTable(), key, 1);
+    //    __attribute__((unused)) auto res = resp->waitForResult();
+    //    LOG_ASSERT(res, "Could not delete undo log");
+    //}
 }
 
 void Transaction::writeBack(bool withIndexes) {
