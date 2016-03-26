@@ -232,7 +232,7 @@ void Transaction::rollback() {
 }
 
 void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
-    uint64_t key = mSnapshot->version() << 16;
+    uint64_t key = mSnapshot->version() & ~(std::numeric_limits<uint64_t>::max() << 48);
     if (log.first > gMaxUndoLogSize) {
         if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
             throw std::runtime_error("Undo Log is too large");
@@ -241,7 +241,7 @@ void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
         std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
         responses.reserve((log.first / gMaxUndoLogSize) + 1);
         for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
-            auto chunkKey = (key | chunkNum);
+            auto chunkKey = (key | (chunkNum << 48));
             auto toWrite = std::min(log.first - sizeWritten, gMaxUndoLogSize);
             responses.emplace_back(mHandle.insert(mContext.clientTable->txTable(), chunkKey, 0, {
                         std::make_pair("value", crossbow::string(reinterpret_cast<char*>(log.second) + sizeWritten,
@@ -263,7 +263,7 @@ void Transaction::writeUndoLog(std::pair<size_t, uint8_t*> log) {
 }
 
 void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
-    uint64_t key = mSnapshot->version() << 16;
+    uint64_t key = mSnapshot->version() & ~(std::numeric_limits<uint64_t>::max() << 48);
     if (log.first > gMaxUndoLogSize) {
         if ((log.first / gMaxUndoLogSize) >= static_cast<decltype(log.first)>(std::numeric_limits<uint16_t>::max())) {
             throw std::runtime_error("Undo Log is too large");
@@ -272,7 +272,7 @@ void Transaction::removeUndoLog(std::pair<size_t, uint8_t*> log) {
         std::vector<std::shared_ptr<tell::store::ModificationResponse>> responses;
         responses.reserve((log.first / gMaxUndoLogSize) + 1);
         for (uint64_t chunkNum = 0; sizeWritten < log.first; ++chunkNum) {
-            auto chunkKey = (key | chunkNum);
+            auto chunkKey = (key | (chunkNum << 48));
             auto segSize = std::min(log.first - sizeWritten, gMaxUndoLogSize);
             responses.emplace_back(mHandle.remove(mContext.clientTable->txTable(), chunkKey, 1));
             sizeWritten += segSize;
