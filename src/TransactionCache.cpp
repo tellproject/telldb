@@ -61,7 +61,7 @@ table_t Future<table_t>::get() {
     }
     auto table = resp->get();
     resp = nullptr;
-    result = cache.addTable(name, table);
+    result = cache.addTable(std::move(table));
     return result;
 }
 
@@ -90,9 +90,9 @@ Future<table_t> TransactionCache::openTable(const crossbow::string& name) {
         auto tableId = iter->second;
         auto res = Future<table_t>(nullptr, *this);
         res.result.value = tableId.value;
-        if (mTables.count(tableId) == 0) {
-            const auto& t = context.tables[res.result];
-            addTable(*context.tables[res.result], context.indexes->openIndexes(mSnapshot, mHandle, *t));
+        if (mTables.find(tableId) == mTables.end()) {
+            const auto& t = *context.tables[res.result];
+            addTable(t, context.indexes->openIndexes(mSnapshot, mHandle, t));
         }
         return res;
     }
@@ -140,25 +140,22 @@ TransactionCache::~TransactionCache() {
 table_t TransactionCache::addTable(const tell::store::Table& table,
         std::unordered_map<crossbow::string,
         impl::IndexWrapper>&& indexes) {
-    auto id = table.tableId();
-    mTables.emplace(table_t { id }, new (&mPool) TableCache(table, mHandle, mSnapshot, mPool, std::move(indexes)));
-    table_t res;
-    res.value = id;
-    return res;
+    table_t id { table.tableId() };
+    mTables.emplace(id, new (&mPool) TableCache(table, mHandle, mSnapshot, mPool, std::move(indexes)));
+    return id;
 }
 
-table_t TransactionCache::addTable(const crossbow::string& name, const tell::store::Table& table) {
+table_t TransactionCache::addTable(tell::store::Table table) {
     auto indexes = context.indexes->openIndexes(mSnapshot, mHandle, table);
     table_t res{table.tableId()};
     Table* t = nullptr;
     auto iter = context.tables.find(res);
     if (iter == context.tables.end()) {
-        context.tableNames.insert(std::make_pair(name, res));
-        auto p = context.tables.insert(std::make_pair(res, new Table(table)));
+        context.tableNames.emplace(table.tableName(), res);
+        auto p = context.tables.emplace(res, new Table(std::move(table)));
         t = p.first->second;
     } else {
         t = iter->second;
-        context.tableNames[name] = tell::db::table_t{table.tableId()};
     }
     return addTable(*t, std::move(indexes));
 }

@@ -73,7 +73,7 @@ public: // Helpers
     void applyForLog(A& ar, bool withIndexes) const;
 private:
     table_t addTable(const tell::store::Table& table, std::unordered_map<crossbow::string, impl::IndexWrapper>&& indexes);
-    table_t addTable(const crossbow::string& name, const tell::store::Table& table);
+    table_t addTable(tell::store::Table table);
 };
 
 } // namespace db
